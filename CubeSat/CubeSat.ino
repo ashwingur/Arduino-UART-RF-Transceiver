@@ -1,5 +1,4 @@
 #include <SoftwareSerial.h>
-#include "Zetaplus.h"
 
 
 // Shutdown pin
@@ -24,7 +23,7 @@ void setup() {
   digitalWrite(PIN_SDN, LOW);
 
   delay(1000);
-  ATR(0, 17);
+  ATR(0, 64);
   delay(20);
   ATM(1);
   delay(20);
@@ -32,7 +31,7 @@ void setup() {
 
 void loop() {
 
-  Transmit(0, 16, "Hello from space");
+  Transmit(0, 64, "Hello from space                                                                ");
   
   // Serial.println("Command Sent");
   delay(150);
