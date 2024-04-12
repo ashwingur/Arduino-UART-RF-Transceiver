@@ -71,14 +71,8 @@ class Zetaplus{
       Serial.println(rfSerial.available());
       char byte1 = rfSerial.read();
       char byte2 = rfSerial.read();
-      Serial.print(byte1);
-      Serial.print(byte2);
-      // Serial.println(rfSerial.read(), );
-      // Serial.println(rfSerial.read());
-      // Serial.println(rfSerial.read());
-      // Read incoming data until the starting pattern "#R" is found
-      // String input = rfSerial.readStringUntil('#');
-      // Serial.println(input);
+      // Serial.print(byte1);
+      // Serial.print(byte2);
       if (byte1 == '#' && byte2 == 'R') {
         // Read packet length
         uint8_t packetLength = rfSerial.read();
@@ -90,7 +84,7 @@ class Zetaplus{
         byte data[packetLength];
         for (int i = 0; i < packetLength; i++) {
           data[i] = rfSerial.read();
-          // Allow the 
+          // Allow the uart buffer to fill up. Without a delay we empty it too quick
           delayMicroseconds(200);
         }
 
@@ -101,9 +95,29 @@ class Zetaplus{
         Serial.print("Data: ");
         PrintByteArray(data, packetLength);
         // Process the received data
-        // processCommand(packetLength, signalStrength, data);
+        // ProcessCommand(packetLength, signalStrength, data);
       }
     }
+  }
+
+  /*
+    Process the first packet of a new transmission that was received
+    Depending on the command contained in the packet, further packets will be expected
+    and processed accordingly
+  */
+  void ProcessNewCommand(uint8_t packet_length, byte *data){
+    // First 4 bytes is the address of the message
+    // It should match with the current transceiver's ID
+
+    // Next byte is the message type
+    // WOD: 0b11111110
+    // Science: 0b11111111
+    // Command: 0b11111100
+
+    // If it was command the next byte represents the command type
+    // 0 - Ping
+    // 1 - Request WOD
+    // 2 - Request Science
   }
 
   void PrintByteArray(byte* data, uint8_t length) {
@@ -178,7 +192,7 @@ class Zetaplus{
 };
 
 
-
+// Create a zetaplus instance
 Zetaplus zetaplus(BAUD_RATE);
 
 
@@ -186,7 +200,7 @@ void setup() {
   // PC serial monitor
   Serial.begin(9600);
   
-  // InitialiseTransceiver(BAUD_RATE);
+  // Initialise transceiver to ready it for RX and TX
   zetaplus.InitialiseTransceiver();
 }
 
