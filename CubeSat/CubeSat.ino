@@ -42,7 +42,9 @@ class Zetaplus{
   }
 
   void InitialiseTransceiver(){
-    Serial.println("Initialising Transceiver");
+    Serial.println();
+    Serial.print("Initialising Transceiver, my Address is ");
+    Serial.println(MY_ADDRESS);
     // RF Transceiver serial
     rfSerial.begin(baud_rate);
 
@@ -64,17 +66,18 @@ class Zetaplus{
       
       // Check the received input and perform actions accordingly
       if (input == "ping") {
-        // Action for Option1
         Serial.println("Sending Ping");
-        // Transmit(0, 4, "Ping");
         SendPing();
-      } else if (input == "time") {
-        // Action for Option2
-        Serial.println("Time Command");
-        Transmit(0, 4, "Time");
-      } else {
+      } else if (input == "wod") {
+        Serial.println("Requesting WOD");
+        RequestWOD();
+      } else if (input == "help"){
+        Serial.println("Available commands: ping, wod");
+      }
+      else {
         // Invalid option
-        Serial.println("Invalid command");
+        Serial.print("Invalid command: ");
+        Serial.println(input);
       }
     } 
   }
@@ -87,12 +90,48 @@ class Zetaplus{
     packet[5] = CommandType::PING;
     Transmit(0, 64, packet);
   }
+
   void SendPong(){
     byte packet[64];
     memset(packet, 0, 64);
     memcpy(packet, TARGET_ADDRESS, 4);
     packet[4] = MessageType::PONG;
     Transmit(0, 64, packet);
+  }
+
+  void RequestWOD(){
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::COMMAND;
+    packet[5] = CommandType::REQUEST_WOD;
+    Transmit(0, 64, packet);
+  }
+
+  // Just send fake WOD for testing for now
+  void SendWOD(){
+    // Send first data packet, containing header info
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::WOD;
+    Transmit(0, 64, packet);
+
+    // Now send the actual data content packets
+    // For 1856 bits (232 bytes) it will take 232/61 = 4 additional packets
+    for (int i = 0; i < 4; i++){
+      delay(200);
+      uint16_t remaining_packets = 3 - i;
+      memcpy(packet + 0, &remaining_packets, sizeof(uint16_t));
+      packet[2] = MessageType::WOD;
+      // Put some random crap in the data contents
+      for (int k = 0; k < 61; k++){
+        packet[3+k] = k;
+      }
+      Transmit(0, 64, packet);
+      Serial.print("Sending wod addtional packet ");
+      Serial.println(i);
+    }
   }
 
   // Check if a new transmission has been received
@@ -120,14 +159,14 @@ class Zetaplus{
           delayMicroseconds(200);
         }
 
-        Serial.print("Packet Received - length: ");
+        Serial.print("New Received - length: ");
         Serial.print(packetLength);
         Serial.print(", RSSI: ");
         Serial.print(RSSI);
         Serial.print(", Data: ");
         PrintByteArray(data, packetLength);
         // Process the received data
-        ProcessNewCommand(packetLength, data);
+        ProcessNewMessage(data);
       }
     }
   }
@@ -137,7 +176,7 @@ class Zetaplus{
     Depending on the command contained in the packet, further packets will be expected
     and processed accordingly
   */
-  void ProcessNewCommand(uint8_t packet_length, byte *data){
+  void ProcessNewMessage(byte *data){
     // First 4 bytes is the address of the message
     // It should match with the current transceiver's ID
     if (!(data[0] == MY_ADDRESS[0] && 
@@ -157,15 +196,19 @@ class Zetaplus{
 
     if (msgType == MessageType::WOD){
       Serial.println("Receiving WOD message");
+      ProcessAdditionalPackets("WOD Message");
     } else if (msgType == MessageType::SCIENCE){
       Serial.println("Receiving SCIENCE message");
     }else if (msgType == MessageType::COMMAND){
       Serial.println("Receiving COMMAND message");
       CommandType commandType = static_cast<CommandType>(data[5]);
-      if (commandType == PING){
+      if (commandType == CommandType::PING){
         // Send back a PONG
         Serial.println("Received Ping, sending back a Pong...");
         SendPong();
+      } else if (commandType == CommandType::REQUEST_WOD){
+        Serial.println("Received WOD request, sending WOD...");
+        SendWOD();
       }
     }else if (msgType == MessageType::PONG){
       Serial.println("Received PONG message");
@@ -173,6 +216,77 @@ class Zetaplus{
       Serial.println("Unknown message type received");
     }
 
+  }
+
+  /*
+    The first packet has been received. This function is called if additional data packets
+    relating to the first packet message are expected.
+
+    These additional datapackets will be of the following format:
+    2 bytes - u_int16, number of additional packets to be sent
+    1 byte - Message type (WOD, science, command)
+    61 bytes - Actual data contents
+
+    The data contents will be printed to serial. An external program can intercept and
+    process this serial data into readable output through CSVs etc.
+
+    The input is a string corresponding to the message type expected. This is arbitrary
+    and will be printed in the serial output for easier parsing by an external program
+    (so we know when the additional packets stop and end)
+  */
+  void ProcessAdditionalPackets(char *messageName){
+    int packet_number = 0;
+    // Add a 50ms timeout between additional datapackets. If this is exceeded then return
+    unsigned long timeout = 1000;
+    unsigned long time_since_last_packet = 0;
+    while (time_since_last_packet < timeout){
+      unsigned long start_time = millis();
+      if (rfSerial.available() > 0){
+        delay(30);
+        char starting_byte1 = rfSerial.read();
+        char starting_byte2 = rfSerial.read();
+        if (!(starting_byte1 == '#' && starting_byte2 == 'R')){
+          Serial.println("Invalid starting bytes in additional packets");
+          return;
+        }
+
+        // Read packet length
+        uint8_t packetLength = rfSerial.read();
+        // Read signal strength
+        uint8_t RSSI = rfSerial.read();
+
+        timeout = 0;
+        Serial.print("Processing additonal packet number: ");
+        Serial.println(packet_number);
+          
+        uint8_t byte1 = rfSerial.read();
+        uint8_t byte2 = rfSerial.read();
+
+        // Little endian
+        uint16_t remaining_packets = (byte2 << 8) | byte1;
+        
+        MessageType msgType = static_cast<MessageType>(rfSerial.read());
+
+        // Read the data
+        byte data[61];
+        for (int i = 0; i < 61; i++) {
+          data[i] = rfSerial.read();
+          // Allow the uart buffer to fill up. Without a delay we empty it too quick
+          delayMicroseconds(200);
+        }
+        Serial.print("Remaining packets: ");
+        Serial.print(remaining_packets);
+        Serial.print(", Message type: ");
+        Serial.print(msgType);
+        Serial.print(", Data: ");
+        PrintByteArray(data, 61);
+
+      }
+      delay(1);
+      time_since_last_packet += millis() - start_time;
+      // Serial.println(time_since_last_packet);
+    }
+    Serial.println("Finished processing all additional packets");
   }
 
   void PrintByteArray(byte* data, uint8_t length) {
