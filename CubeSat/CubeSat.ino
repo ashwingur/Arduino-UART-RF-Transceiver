@@ -100,12 +100,11 @@ class Zetaplus{
   // the data cannot fit in 64 bytes
   void ReceiveNewTransmission(){
     if (rfSerial.available() > 0) { // Check if data is available to read
-      Serial.print("RF avaialble: ");
-      Serial.println(rfSerial.available());
+      // Add a delay so we give some time for the buffer to fill up
+      // Transmission rate is much slower than clock speed
+      delay(10);
       char byte1 = rfSerial.read();
       char byte2 = rfSerial.read();
-      // Serial.print(byte1);
-      // Serial.print(byte2);
       if (byte1 == '#' && byte2 == 'R') {
         // Read packet length
         uint8_t packetLength = rfSerial.read();
@@ -124,11 +123,10 @@ class Zetaplus{
         Serial.print("Packet Received - length: ");
         Serial.print(packetLength);
         Serial.print(", RSSI: ");
-        Serial.println(RSSI);
-        Serial.print("Data: ");
+        Serial.print(RSSI);
+        Serial.print(", Data: ");
         PrintByteArray(data, packetLength);
         // Process the received data
-        // ProcessCommand(packetLength, signalStrength, data);
         ProcessNewCommand(packetLength, data);
       }
     }
@@ -153,21 +151,15 @@ class Zetaplus{
       Serial.println((char)data[3]);
       return;
     }
-
-    Serial.println("Processing new command");
     
     // Next byte is the message type
     MessageType msgType = static_cast<MessageType>(data[4]);
-    Serial.println(msgType);
 
-    switch (msgType) {
-    case WOD:
+    if (msgType == MessageType::WOD){
       Serial.println("Receiving WOD message");
-      break;
-    case SCIENCE:
+    } else if (msgType == MessageType::SCIENCE){
       Serial.println("Receiving SCIENCE message");
-      break;
-    case COMMAND:
+    }else if (msgType == MessageType::COMMAND){
       Serial.println("Receiving COMMAND message");
       CommandType commandType = static_cast<CommandType>(data[5]);
       if (commandType == PING){
@@ -175,21 +167,18 @@ class Zetaplus{
         Serial.println("Received Ping, sending back a Pong...");
         SendPong();
       }
-      break;
-    case PONG:
+    }else if (msgType == MessageType::PONG){
       Serial.println("Received PONG message");
-      break;
-    default:
+    } else {
       Serial.println("Unknown message type received");
-      break;
     }
-
 
   }
 
   void PrintByteArray(byte* data, uint8_t length) {
     for (int i = 0; i < length; i++) {
-      Serial.print((char) data[i]); // Cast byte to integer before printing
+      Serial.print((char) data[i], DEC); // Cast byte to integer before printing
+      Serial.print(" "); // Cast byte to integer before printing
       // Serial.print(" "); // Add space between values
     }
     Serial.println(); // Print a newline character after printing the array
@@ -276,6 +265,7 @@ void loop() {
   zetaplus.SendUserCommand();
   // Receive a command and process it
   zetaplus.ReceiveNewTransmission();
+
 }
 
 
