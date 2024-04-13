@@ -1,5 +1,5 @@
-#define _SS_MAX_RX_BUFF 128
 #include <SoftwareSerial.h>
+#include "credentials.h"
 
 // Shutdown pin
 const int PIN_SDN = 2;
@@ -21,6 +21,21 @@ class Zetaplus{
   int baud_rate;
   SoftwareSerial rfSerial;
 
+  enum MessageType : uint8_t {
+        WOD = 1,
+        SCIENCE = 2,
+        COMMAND = 3,
+        PONG = 4,
+  };
+  enum CommandType : uint8_t {
+        REQUEST_WOD = 1,
+        REQUEST_SCIENCE_CURRENT = 2,
+        REQUEST_SCIENCE_IMAGE = 3,
+        PING = 4,
+        REQUEST_TIME = 5,
+        SET_TIME = 6,
+  };
+
   public:
   Zetaplus(uint32_t baud_rate): baud_rate(), rfSerial(PIN_RX, PIN_TX){
     this->baud_rate = baud_rate;
@@ -34,6 +49,7 @@ class Zetaplus{
     pinMode(PIN_SDN, OUTPUT);
     digitalWrite(PIN_SDN, LOW);
 
+    // Set to receive mode on channel 0 with packet sizes of 64
     delay(100);
     ATR(0, 64);
     delay(20);
@@ -50,7 +66,8 @@ class Zetaplus{
       if (input == "ping") {
         // Action for Option1
         Serial.println("Sending Ping");
-        Transmit(0, 4, "Ping");
+        // Transmit(0, 4, "Ping");
+        SendPing();
       } else if (input == "time") {
         // Action for Option2
         Serial.println("Time Command");
@@ -60,6 +77,22 @@ class Zetaplus{
         Serial.println("Invalid command");
       }
     } 
+  }
+
+  void SendPing(){
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::COMMAND;
+    packet[5] = CommandType::PING;
+    Transmit(0, 64, packet);
+  }
+  void SendPong(){
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::PONG;
+    Transmit(0, 64, packet);
   }
 
   // Check if a new transmission has been received
@@ -96,6 +129,7 @@ class Zetaplus{
         PrintByteArray(data, packetLength);
         // Process the received data
         // ProcessCommand(packetLength, signalStrength, data);
+        ProcessNewCommand(packetLength, data);
       }
     }
   }
@@ -108,16 +142,49 @@ class Zetaplus{
   void ProcessNewCommand(uint8_t packet_length, byte *data){
     // First 4 bytes is the address of the message
     // It should match with the current transceiver's ID
+    if (!(data[0] == MY_ADDRESS[0] && 
+        data[1] == MY_ADDRESS[1] && 
+        data[2] == MY_ADDRESS[2] && 
+        data[3] == MY_ADDRESS[3])){
+      Serial.print("Received a message with incorrect ID: ");
+      Serial.print((char)data[0]);
+      Serial.print((char)data[1]);
+      Serial.print((char)data[2]);
+      Serial.println((char)data[3]);
+      return;
+    }
 
+    Serial.println("Processing new command");
+    
     // Next byte is the message type
-    // WOD: 0b11111110
-    // Science: 0b11111111
-    // Command: 0b11111100
+    MessageType msgType = static_cast<MessageType>(data[4]);
+    Serial.println(msgType);
 
-    // If it was command the next byte represents the command type
-    // 0 - Ping
-    // 1 - Request WOD
-    // 2 - Request Science
+    switch (msgType) {
+    case WOD:
+      Serial.println("Receiving WOD message");
+      break;
+    case SCIENCE:
+      Serial.println("Receiving SCIENCE message");
+      break;
+    case COMMAND:
+      Serial.println("Receiving COMMAND message");
+      CommandType commandType = static_cast<CommandType>(data[5]);
+      if (commandType == PING){
+        // Send back a PONG
+        Serial.println("Received Ping, sending back a Pong...");
+        SendPong();
+      }
+      break;
+    case PONG:
+      Serial.println("Received PONG message");
+      break;
+    default:
+      Serial.println("Unknown message type received");
+      break;
+    }
+
+
   }
 
   void PrintByteArray(byte* data, uint8_t length) {
