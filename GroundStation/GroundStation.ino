@@ -119,7 +119,7 @@ class Zetaplus{
 
     // Now send the actual data content packets
     // For 1856 bits (232 bytes) it will take 232/61 = 4 additional packets
-    int n_additional_packets = 10;
+    int n_additional_packets = 5;
     for (int i = 0; i < n_additional_packets; i++){
       // MAKE SURE THIS DELAY IS LESS THAN THE ITERATION TIME TO PROCESS EACH PACKET IN 
       // ProcessNewPackets()
@@ -238,6 +238,9 @@ class Zetaplus{
     (so we know when the additional packets stop and end)
   */
   void ProcessAdditionalPackets(char *messageName){
+    Serial.print("<");
+    Serial.print(messageName);
+    Serial.println(">");
     unsigned long function_start_time = millis();
     // Add a 50ms timeout between additional datapackets. If this is exceeded then return
     unsigned long timeout = 1000;
@@ -257,39 +260,24 @@ class Zetaplus{
         uint8_t packetLength = rfSerial.read();
         // Read signal strength
         uint8_t RSSI = rfSerial.read();
-          
-        uint8_t byte1 = rfSerial.read();
-        uint8_t byte2 = rfSerial.read();
-
-        // Little endian
-        uint16_t remaining_packets = (byte2 << 8) | byte1;
-        
-        MessageType msgType = static_cast<MessageType>(rfSerial.read());
 
         // Read the data
-        byte data[61];
-        for (int i = 0; i < 61; i++) {
+        byte data[64];
+        for (int i = 0; i < 64; i++) {
           // Allow the uart buffer to fill up. Without a delay we empty it too quick
           delayMicroseconds(200);
           data[i] = rfSerial.read();
         }
-        Serial.print("Remaining packets: ");
-        Serial.print(remaining_packets);
-        Serial.print(", Message type: ");
-        Serial.print(msgType);
-        Serial.print(", Data: ");
-        PrintByteArray(data, 61);
-        Serial.print("Iteration took ");
-        Serial.println(millis() - start_time);
+        PrintByteArray(data, 64);
         time_since_last_packet = 0;
 
       }
       time_since_last_packet += millis() - start_time;
-      // Serial.print(time_since_last_packet);
-      // Serial.print(", ");
-      // Serial.println(start_time);
-      // Serial.println(time_since_last_packet);
     }
+    Serial.println();
+    Serial.print("<");
+    Serial.print(messageName);
+    Serial.println("/>");
     Serial.print("Finished processing all additional packets. Time taken: ");
     Serial.print((millis() - function_start_time)/1000.0);
     Serial.println("s");
@@ -297,13 +285,11 @@ class Zetaplus{
 
   void PrintByteArray(byte* data, uint8_t length) {
     for (int i = 0; i < length; i++) {
-      Serial.print((char) data[i], DEC); // Cast byte to integer before printing
-      Serial.print(" "); // Cast byte to integer before printing
-      // Serial.print(" "); // Add space between values
+      Serial.print((char)data[i]); // Cast byte to integer before printing
+      // Serial.print(" "); // Cast byte to integer before printing
     }
-    Serial.println(); // Print a newline character after printing the array
+    // Serial.println(); // Print a newline character after printing the array
   }
-
 
   /*
     Operating Mode 
