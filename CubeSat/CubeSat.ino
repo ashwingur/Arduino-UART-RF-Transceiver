@@ -119,9 +119,12 @@ class Zetaplus{
 
     // Now send the actual data content packets
     // For 1856 bits (232 bytes) it will take 232/61 = 4 additional packets
-    for (int i = 0; i < 4; i++){
-      delay(200);
-      uint16_t remaining_packets = 3 - i;
+    int n_additional_packets = 10;
+    for (int i = 0; i < n_additional_packets; i++){
+      // MAKE SURE THIS DELAY IS LESS THAN THE ITERATION TIME TO PROCESS EACH PACKET IN 
+      // ProcessNewPackets()
+      delay(100);
+      uint16_t remaining_packets = n_additional_packets - i - 1;
       memcpy(packet + 0, &remaining_packets, sizeof(uint16_t));
       packet[2] = MessageType::WOD;
       // Put some random crap in the data contents
@@ -154,9 +157,9 @@ class Zetaplus{
         // Read data packets
         byte data[packetLength];
         for (int i = 0; i < packetLength; i++) {
-          data[i] = rfSerial.read();
           // Allow the uart buffer to fill up. Without a delay we empty it too quick
-          delayMicroseconds(200);
+          delayMicroseconds(110);
+          data[i] = rfSerial.read();
         }
 
         Serial.print("New Received - length: ");
@@ -235,14 +238,14 @@ class Zetaplus{
     (so we know when the additional packets stop and end)
   */
   void ProcessAdditionalPackets(char *messageName){
-    int packet_number = 0;
+    unsigned long function_start_time = millis();
     // Add a 50ms timeout between additional datapackets. If this is exceeded then return
     unsigned long timeout = 1000;
     unsigned long time_since_last_packet = 0;
     while (time_since_last_packet < timeout){
       unsigned long start_time = millis();
       if (rfSerial.available() > 0){
-        delay(30);
+        delay(10);
         char starting_byte1 = rfSerial.read();
         char starting_byte2 = rfSerial.read();
         if (!(starting_byte1 == '#' && starting_byte2 == 'R')){
@@ -254,10 +257,6 @@ class Zetaplus{
         uint8_t packetLength = rfSerial.read();
         // Read signal strength
         uint8_t RSSI = rfSerial.read();
-
-        timeout = 0;
-        Serial.print("Processing additonal packet number: ");
-        Serial.println(packet_number);
           
         uint8_t byte1 = rfSerial.read();
         uint8_t byte2 = rfSerial.read();
@@ -270,9 +269,9 @@ class Zetaplus{
         // Read the data
         byte data[61];
         for (int i = 0; i < 61; i++) {
-          data[i] = rfSerial.read();
           // Allow the uart buffer to fill up. Without a delay we empty it too quick
           delayMicroseconds(200);
+          data[i] = rfSerial.read();
         }
         Serial.print("Remaining packets: ");
         Serial.print(remaining_packets);
@@ -280,13 +279,20 @@ class Zetaplus{
         Serial.print(msgType);
         Serial.print(", Data: ");
         PrintByteArray(data, 61);
+        Serial.print("Iteration took ");
+        Serial.println(millis() - start_time);
+        time_since_last_packet = 0;
 
       }
-      delay(1);
       time_since_last_packet += millis() - start_time;
+      // Serial.print(time_since_last_packet);
+      // Serial.print(", ");
+      // Serial.println(start_time);
       // Serial.println(time_since_last_packet);
     }
-    Serial.println("Finished processing all additional packets");
+    Serial.print("Finished processing all additional packets. Time taken: ");
+    Serial.print((millis() - function_start_time)/1000.0);
+    Serial.println("s");
   }
 
   void PrintByteArray(byte* data, uint8_t length) {
@@ -368,7 +374,7 @@ Zetaplus zetaplus(BAUD_RATE);
 
 void setup() {
   // PC serial monitor
-  Serial.begin(9600);
+  Serial.begin(115200);
   
   // Initialise transceiver to ready it for RX and TX
   zetaplus.InitialiseTransceiver();
