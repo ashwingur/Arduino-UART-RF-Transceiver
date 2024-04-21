@@ -2,6 +2,6 @@
 #define CREDENTIALS_H
 
 #define MY_ADDRESS "CUBE"
-#define TARGET_ADDRESS "POOP"
+#define TARGET_ADDRESS "USYD"
 
 #endif
