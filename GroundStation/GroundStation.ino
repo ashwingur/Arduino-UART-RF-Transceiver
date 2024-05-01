@@ -23,17 +23,24 @@ class Zetaplus{
 
   enum MessageType : uint8_t {
         WOD = 1,
-        SCIENCE = 2,
-        COMMAND = 3,
-        PONG = 4,
+        SCIENCE_IMAGE = 2,
+        SCIENCE_THERMO_AND_CURRENT = 3,
+        GROUND_STATION_COMMAND = 4,
+        TIME = 5,
+        PONG = 6,
   };
   enum CommandType : uint8_t {
         REQUEST_WOD = 1,
-        REQUEST_SCIENCE_CURRENT = 2,
-        REQUEST_SCIENCE_IMAGE = 3,
-        PING = 4,
+        REQUEST_SCIENCE_IMAGE = 2,
+        REQUEST_SCIENCE_THERMO_AND_CURRENT = 3,
+        SEND_PING = 4,
         REQUEST_TIME = 5,
         SET_TIME = 6,
+        SET_OPERATING_MODE = 7,
+        CLEAR_STORAGE_DATA = 8,
+        ACTIVATE_PAYLOAD_STRIKING_MECHANISM = 9,
+        PERFORM_SCIENCE_MEADUREMENT = 10,
+
   };
 
   public:
@@ -86,8 +93,8 @@ class Zetaplus{
     byte packet[64];
     memset(packet, 0, 64);
     memcpy(packet, TARGET_ADDRESS, 4);
-    packet[4] = MessageType::COMMAND;
-    packet[5] = CommandType::PING;
+    packet[4] = MessageType::GROUND_STATION_COMMAND;
+    packet[5] = CommandType::SEND_PING;
     Transmit(0, 64, packet);
   }
 
@@ -103,7 +110,7 @@ class Zetaplus{
     byte packet[64];
     memset(packet, 0, 64);
     memcpy(packet, TARGET_ADDRESS, 4);
-    packet[4] = MessageType::COMMAND;
+    packet[4] = MessageType::GROUND_STATION_COMMAND;
     packet[5] = CommandType::REQUEST_WOD;
     Transmit(0, 64, packet);
   }
@@ -200,12 +207,12 @@ class Zetaplus{
     if (msgType == MessageType::WOD){
       Serial.println("Receiving WOD message");
       ProcessAdditionalPackets("WOD Message");
-    } else if (msgType == MessageType::SCIENCE){
+    } else if (msgType == MessageType::SCIENCE_IMAGE){
       Serial.println("Receiving SCIENCE message");
-    }else if (msgType == MessageType::COMMAND){
+    }else if (msgType == MessageType::GROUND_STATION_COMMAND){
       Serial.println("Receiving COMMAND message");
       CommandType commandType = static_cast<CommandType>(data[5]);
-      if (commandType == CommandType::PING){
+      if (commandType == CommandType::SEND_PING){
         // Send back a PONG
         Serial.println("Received Ping, sending back a Pong...");
         SendPong();
