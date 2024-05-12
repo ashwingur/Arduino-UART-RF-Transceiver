@@ -1,0 +1,5 @@
+{
+    "board": "arduino:avr:uno",
+    "sketch": "GroundStation\\GroundStation.ino",
+    "port": "COM3"
+}
