@@ -15,28 +15,14 @@ BAUD_RATE = 115200
 
 # Function to continuously read data from serial port
 def serial_read(serial_port):
-    additional_packets = b''
-    reading_additional_data = False
     while True:
         # data = serial_port.readline().decode().strip()
         data = serial_port.readline()
         if data:
-            if data.decode().strip() == "<WOD Message>":
-                reading_additional_data = True
-            elif data.decode().strip() == "<WOD Message/>":
-                reading_additional_data = False
-                process_wod(additional_packets)
-                additional_packets = b''
-            elif reading_additional_data:
-                additional_packets += data
-            elif "New Received" in data.decode().strip():
+            if "New Received" in data.decode().strip():
                 # Next line contains a new command data
                 data_contents = serial_port.readline()
-                process_header_data_contents(data_contents)
-
-            # for byte in data:
-            #     print(f'{int(byte)},',end='')
-            # print()
+                process_header_data_contents(serial_port, data_contents)
             print(f'{data.decode().strip()}')
 
 # Function to continuously send data to serial port
@@ -48,12 +34,10 @@ def serial_write(serial_port):
         serial_port.write(message.encode())
 
 
-def process_header_data_contents(data):
+def process_header_data_contents(serial_port, data):
     # first 4 bytes are the USYD callsign which has already been verified by the arduino
     # skip these 4 bytes
     data = data[4:]
-    # print(f'data contents: {data.decode().strip()}')
-    # print(f'data contents: {data}')
 
     # Check what the message type is
     msg_type = struct.unpack("<B", data[:1])[0]
@@ -61,7 +45,22 @@ def process_header_data_contents(data):
     # Process accordingly to the message type (defined by MessageType enum in the arduino script)
     if msg_type == 1:
         # WOD
-        pass
+        additional_packets = b''
+        data = serial_port.readline() # This is an additional print in the arduino
+        data = serial_port.readline()
+        if data.decode().strip() == "<WOD Message>":
+            data = serial_port.readline()
+            iterations = 0
+            while iterations < 10: # So we dont go into infinite loop in case cubesat sends bad data
+                # Read all the wod packets, there should be 5
+                data = serial_port.readline()
+                if data.decode().strip() == "<WOD Message/>":
+                    break
+                    
+                additional_packets += data
+                iterations += 1
+            process_wod(additional_packets)
+
     elif msg_type == 2:
         # SCIENCE_IMAGE
         pass
@@ -85,6 +84,7 @@ def process_header_data_contents(data):
 
 
 def process_wod(packets):
+    print("Processing WOD...")
     chunk_size = 64
     contents = b''
     # WOD fits in 5 packets
@@ -122,6 +122,7 @@ def process_wod(packets):
             # temp_battery    = unpacked_data[8*i + 8]
             # print(f"{mode}, {bat_voltage}, {bat_current}, {bus_3v_current}, {bus_5v_current}, {temp_comm}, {temp_eps}, {temp_battery}")
             writer.writerow(time_column + data_row)
+        print("WOD saved to wod.csv")
 
 def parse_seconds_to_datetime(seconds):
     # Reference epoch (01/01/2000 00:00:00 UTC)
