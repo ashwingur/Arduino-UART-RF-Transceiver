@@ -19,19 +19,37 @@ def serial_read(serial_port):
         # data = serial_port.readline().decode().strip()
         data = serial_port.readline()
         if data:
+            print(data)
             if "New Received" in data.decode().strip():
                 # Next line contains a new command data
                 data_contents = serial_port.readline()
                 process_header_data_contents(serial_port, data_contents)
-            print(f'{data.decode().strip()}')
+            print(f'Arduino: {data.decode().strip()}')
 
 # Function to continuously send data to serial port
 def serial_write(serial_port):
     while True:
         message = input("")
         if not message:
-            break
-        serial_port.write(message.encode())
+            continue
+        if "settime" in message:
+            args = message.split()
+            if len(args) == 1:
+                # automatically pass in the current timestamp value
+                timestamp = current_time_to_seconds()
+            elif len(args) == 2:
+                # parse the given timestamp value and send it
+                timestamp = parse_datetime_to_seconds(args[1])
+            else:
+                print("Invalid gettime command")
+                continue
+            print(f'timestamp is: {timestamp}')
+            serial_port.write("settime ".encode())
+            serial_port.write(str(timestamp).encode())
+            serial_port.write(" 233333".encode())
+            serial_port.write(b'\n')
+        else:
+            serial_port.write(message.encode())
 
 
 def process_header_data_contents(serial_port, data):
@@ -123,6 +141,17 @@ def process_wod(packets):
             # print(f"{mode}, {bat_voltage}, {bat_current}, {bus_3v_current}, {bus_5v_current}, {temp_comm}, {temp_eps}, {temp_battery}")
             writer.writerow(time_column + data_row)
         print("WOD saved to wod.csv")
+
+def current_time_to_seconds():
+    # Reference epoch (01/01/2000 00:00:00 UTC)
+    reference_epoch = datetime(2000, 1, 1, 0, 0, 0)
+    # Get the current time
+    current_time = datetime.utcnow()
+    # Calculate the time difference
+    time_difference = current_time - reference_epoch
+    # Convert the time difference to seconds
+    seconds_since_epoch = int(time_difference.total_seconds())
+    return seconds_since_epoch
 
 def parse_seconds_to_datetime(seconds):
     # Reference epoch (01/01/2000 00:00:00 UTC)

@@ -93,6 +93,16 @@ public:
         Serial.println("Requesting Time");
         RequestTime();
       }
+      else if (input.indexOf("settime") != -1)
+      {
+        // Send the time
+        char strBuffer[50];
+        int timestamp;
+        sscanf(input.c_str(), "%s %d", strBuffer, &timestamp);
+        Serial.print("Setting time to: ");
+        Serial.println(timestamp);
+        SetTime(timestamp);
+      }
       else if (input == "help")
       {
         Serial.println("Available commands: ping, wod");
@@ -185,6 +195,17 @@ public:
     packet[4] = MessageType::TIME;
     uint32_t current_time = 766772417; // Using some random testvalue for now
     memcpy(packet + 5, &current_time, 4);
+    Transmit(0, 64, packet);
+  }
+
+  void SetTime(uint32_t timestamp)
+  {
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::GROUND_STATION_COMMAND;
+    packet[5] = CommandType::SET_TIME;
+    memcpy(packet + 6, &timestamp, 4);
     Transmit(0, 64, packet);
   }
 

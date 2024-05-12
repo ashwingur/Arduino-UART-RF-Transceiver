@@ -77,6 +77,9 @@ public:
     {                                              // Check if data is available to read
       String input = Serial.readStringUntil('\n'); // Read the input until newline character
 
+      Serial.print("input was: ");
+      Serial.println(input);
+
       // Check the received input and perform actions accordingly
       if (input == "ping")
       {
@@ -92,6 +95,17 @@ public:
       {
         Serial.println("Requesting Time");
         RequestTime();
+      }
+      else if (input.indexOf("settime") != -1)
+      {
+        // Send the time
+        char strBuffer[50];
+        long timestamp;
+        ;
+        sscanf(input.c_str(), "%s %ld", strBuffer, &timestamp);
+        Serial.print("Setting time to: ");
+        Serial.println(timestamp);
+        SetTime(timestamp);
       }
       else if (input == "help")
       {
@@ -177,14 +191,25 @@ public:
     Transmit(0, 64, packet);
   }
 
-  void SendTime()
+  void SendTime(uint32_t time_to_send)
   {
     byte packet[64];
     memset(packet, 0, 64);
     memcpy(packet, TARGET_ADDRESS, 4);
     packet[4] = MessageType::TIME;
-    uint32_t current_time = 766772417; // Using some random testvalue for now
-    memcpy(packet + 5, &current_time, 4);
+    // uint32_t current_time = 766772417; // Using some random testvalue for now
+    memcpy(packet + 5, &time_to_send, 4);
+    Transmit(0, 64, packet);
+  }
+
+  void SetTime(uint32_t timestamp)
+  {
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::GROUND_STATION_COMMAND;
+    packet[5] = CommandType::SET_TIME;
+    memcpy(packet + 6, &timestamp, 4);
     Transmit(0, 64, packet);
   }
 
@@ -286,7 +311,7 @@ public:
       else if (commandType == CommandType::REQUEST_TIME)
       {
         Serial.println("Received gettime request, sending time...");
-        SendTime();
+        SendTime(11111);
       }
       else
       {
