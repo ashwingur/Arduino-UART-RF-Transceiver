@@ -9,6 +9,8 @@ const int PIN_RX = 3;
 // Default Microcontroller <-> Transceiver Baud Rate
 const int BAUD_RATE = 19200;
 
+long current_time = 0;
+
 // UART connection to transceiver
 // SoftwareSerial rfSerial(PIN_RX, PIN_TX);
 
@@ -76,9 +78,6 @@ public:
     if (Serial.available() > 0)
     {                                              // Check if data is available to read
       String input = Serial.readStringUntil('\n'); // Read the input until newline character
-
-      Serial.print("input was: ");
-      Serial.println(input);
 
       // Check the received input and perform actions accordingly
       if (input == "ping")
@@ -202,14 +201,17 @@ public:
     Transmit(0, 64, packet);
   }
 
-  void SetTime(uint32_t timestamp)
+  void SetTime(long timestamp)
   {
+    current_time = timestamp;
     byte packet[64];
     memset(packet, 0, 64);
     memcpy(packet, TARGET_ADDRESS, 4);
     packet[4] = MessageType::GROUND_STATION_COMMAND;
     packet[5] = CommandType::SET_TIME;
     memcpy(packet + 6, &timestamp, 4);
+    Serial.print("Settime message is: ");
+    PrintByteArray(packet, 64);
     Transmit(0, 64, packet);
   }
 
@@ -311,7 +313,22 @@ public:
       else if (commandType == CommandType::REQUEST_TIME)
       {
         Serial.println("Received gettime request, sending time...");
-        SendTime(11111);
+        SendTime(current_time);
+      }
+      else if (commandType == CommandType::SET_TIME)
+      {
+        Serial.println("Received settime request, setting time...");
+        // Set(current_time);
+        // memcpy(&current_time, data + 5, sizeof(current_time));
+        // PrintByteArray(data, 16);
+        current_time = 0;
+        for (int i = 0; i < 4; i++)
+        {
+          current_time |= ((long int)data[i + 6]) << (i * 8);
+        }
+
+        Serial.print("Set time to ");
+        Serial.println(current_time);
       }
       else
       {
@@ -429,7 +446,7 @@ public:
     for (int i = 0; i < length; i++)
     {
       Serial.print((char)data[i]); // Cast byte to integer before printing
-      // Serial.print(" "); // Cast byte to integer before printing
+      // Serial.print(" ");                // Cast byte to integer before printing
     }
     // Serial.println(); // Print a newline character after printing the array
   }

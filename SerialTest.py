@@ -9,6 +9,7 @@ import threading
 import struct
 import csv
 from datetime import datetime, timedelta
+import pytz
 
 COM_PORT = "COM3"
 BAUD_RATE = 115200
@@ -19,12 +20,11 @@ def serial_read(serial_port):
         # data = serial_port.readline().decode().strip()
         data = serial_port.readline()
         if data:
-            print(data)
-            if "New Received" in data.decode().strip():
+            if "New Received" in data.decode(errors="ignore").strip():
                 # Next line contains a new command data
                 data_contents = serial_port.readline()
                 process_header_data_contents(serial_port, data_contents)
-            print(f'Arduino: {data.decode().strip()}')
+            print(f'Arduino: {data.decode(errors="ignore").strip()}')
 
 # Function to continuously send data to serial port
 def serial_write(serial_port):
@@ -153,11 +153,19 @@ def current_time_to_seconds():
     seconds_since_epoch = int(time_difference.total_seconds())
     return seconds_since_epoch
 
-def parse_seconds_to_datetime(seconds):
+def parse_seconds_to_datetime(seconds, sydney_zone=True):
     # Reference epoch (01/01/2000 00:00:00 UTC)
     reference_epoch = datetime(2000, 1, 1, 0, 0, 0)
     # Add the given number of seconds to the reference epoch
     target_datetime = reference_epoch + timedelta(seconds=seconds)
+
+    # Convert to sydney time if requested
+    if sydney_zone:
+        # Set timezone to Sydney
+        # sydney_tz = pytz.timezone('Australia/Sydney')
+        # target_datetime = target_datetime.astimezone(sydney_tz)
+        target_datetime += timedelta(seconds=10*3600)
+
     # Format the datetime object
     formatted_datetime = target_datetime.strftime("%I:%M:%S%p %dth %B %Y")  # Example: 6:39PM 26th April 2024
     return formatted_datetime
