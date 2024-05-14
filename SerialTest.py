@@ -27,7 +27,7 @@ def serial_read(serial_port):
             print(f'Arduino: {data.decode(errors="ignore").strip()}')
 
 # Function to continuously send data to serial port
-def serial_write(serial_port):
+def serial_write(serial_port: serial.Serial):
     while True:
         message = input("")
         if not message:
@@ -75,7 +75,37 @@ def serial_write(serial_port):
             print(f'{camera}: {camera_num}')
 
             serial_port.write(f'getimage {timestamp} {camera_num} {resume_packet_number} {packets_to_send}\n'.encode())
-
+        elif "getsciencereading" in message:
+            args = message.split()
+            if len(args) == 1:
+                # automatically pass in the current timestamp value
+                timestamp = current_time_to_seconds()
+            elif len(args) == 2:
+                # parse the given timestamp value and send it
+                timestamp = parse_datetime_to_seconds(args[1])
+            else:
+                print("Invalid getsciencereading command")
+                continue
+            serial_port.write(f'getsciencereading {timestamp}\n'.encode())
+        elif "setmode" in message:
+            args = message.split()
+            if len(args) == 2:
+                if args[1] == "safety":
+                    mode = 0
+                elif args[1] == "reboot":
+                    mode = 1
+                else:
+                    print("Incorrect setmode status, expecting 'safety' or 'reboot'")
+                    continue
+                serial_port.write(f'setmode {mode}\n'.encode())
+            else:
+                print("Incorrect setmode command")
+        elif "clearstorage" in message:
+            pass
+        elif "payloadstrike" in message:
+            serial_port.write("payloadstrike\n".encode())
+        elif "sciencemeasurement" in message:
+            serial_port.write("sciencemeasurement\n".encode())
         else:
             serial_port.write(message.encode())
 
@@ -156,12 +186,12 @@ def process_image_content_stream(serial_port: serial.Serial) -> bytes:
         image_bytes += data[3:]
         while True:
             # First 2 bytes are the packets remaining
-            packets_remaining = struct.unpack("<H", data[:2])
-            print(f'packets remaining: {packets_remaining}')
+            packets_remaining = struct.unpack("<H", data[:2])[0]
             data = serial_port.read(64)
             print(f'image data: {data}')
             if len(data) < 64 or data.decode(errors='ignore').strip() == "<Science Image/>":
                 break
+            print(f'packets remaining: {packets_remaining}')
             image_bytes += data[3:]
     print("Finished reading all image bytes")
     return image_bytes
@@ -192,7 +222,7 @@ def process_wod(packets):
     # Since there is extra space left on the last packet, truncate that so we can unpack exactly what we need
     unpacked_data = struct.unpack('<I' + 'B'*8*32, contents[0:8*32+4])
     time = unpacked_data[0]
-    print(time)
+    print(f'WOD time: {parse_seconds_to_datetime(time)} ({time})')
     # Write to a csv file
     with open('wod.csv', 'w', newline='') as csvfile:
         header = ['time', 'mode', 'bat_voltage', 'bat_current', 'bus_3v_current',
@@ -206,7 +236,7 @@ def process_wod(packets):
             # Check the mode value. It should only be 0 or 1
             # If it is another value then set it to -1 because it's invalid
             if data_row[0] > 1:
-                data_row[0] = -1
+                data_row[0] = 0
 
             # mode            = unpacked_data[8*i + 1]
             # bat_voltage     = unpacked_data[8*i + 2]

@@ -124,9 +124,15 @@ public:
         Serial.println(packets_to_send);
         RequestScienceImage(timestamp, camera_number, resume_packet, packets_to_send);
       }
-      else if (input == "help")
+      else if (input.indexOf("getsciencereading") != -1)
       {
-        Serial.println("Available commands: ping, wod");
+        // Send the time
+        char strBuffer[50];
+        long timestamp;
+
+        sscanf(input.c_str(), "%s %ld", strBuffer, &timestamp);
+        Serial.println("Requesting science reading...");
+        RequestScienceReading(timestamp);
       }
       else
       {
@@ -313,6 +319,17 @@ public:
     }
   }
 
+  // For thermocouple and current reading
+  void RequestScienceReading(long timestamp)
+  {
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::GROUND_STATION_COMMAND;
+    packet[5] = CommandType::REQUEST_SCIENCE_THERMO_AND_CURRENT;
+    memcpy(packet + 6, &timestamp, 4);
+    Transmit(0, 64, packet);
+  }
   // Check if a new transmission has been received
   // This is the first packet of a new transmission, which will contain data about later packets if
   // the data cannot fit in 64 bytes
@@ -430,6 +447,10 @@ public:
       {
         Serial.println("Received science image request:");
         ProcessScienceImageRequest(data);
+      }
+      else if (commandType == CommandType::REQUEST_SCIENCE_THERMO_AND_CURRENT)
+      {
+        Serial.println("Received science thermo and current request");
       }
       else
       {
