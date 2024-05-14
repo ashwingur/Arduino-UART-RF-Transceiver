@@ -9,7 +9,7 @@ import threading
 import struct
 import csv
 from datetime import datetime, timedelta
-import pytz
+from PIL import Image
 
 COM_PORT = "COM3"
 BAUD_RATE = 115200
@@ -80,7 +80,7 @@ def serial_write(serial_port):
             serial_port.write(message.encode())
 
 
-def process_header_data_contents(serial_port, data):
+def process_header_data_contents(serial_port: serial.Serial, data):
     # first 4 bytes are the USYD callsign which has already been verified by the arduino
     # skip these 4 bytes
     data = data[4:]
@@ -110,12 +110,22 @@ def process_header_data_contents(serial_port, data):
     elif msg_type == 2:
         # SCIENCE_IMAGE
         print("Science image received")
+        # Process the header data
         camera_number = struct.unpack("<B", data[1:2])[0]
         img_width, img_height = struct.unpack("<hh", data[2:6])
         img_time = struct.unpack("<I", data[6:10])[0]
         start_packet_number = struct.unpack("<h", data[10:12])[0]
         print(f'camera number: {camera_number}, img dimensions: {img_width}x{img_height}, time_taken: {parse_seconds_to_datetime(img_time)}, start packet number: {start_packet_number}')
-        pass
+
+        # Now process the information packets
+        image_bytes = process_image_content_stream(serial_port)
+        print(f'len bytes: {len(image_bytes)}')
+        # There may be some excess bytes in the final packet, be sure to ignore those
+        image_bytes = image_bytes[:img_width*img_height]
+        image = reconstructImage(image_bytes, img_width, img_height)
+        save_and_display_image(image, f"images/{img_time}_{'left' if camera_number == 0 else 'right'}")
+
+
     elif msg_type == 3:
         # SCIENCE_THERMO_AND_CURRENT
         print("Science thermocouple and current received")
@@ -135,6 +145,37 @@ def process_header_data_contents(serial_port, data):
         pass
     else:
         print("Invalid message type received, ignoring the rest of the packet.")
+
+def process_image_content_stream(serial_port: serial.Serial) -> bytes:
+    image_bytes = b''
+
+    data = serial_port.readline() # This is an additional print in the arduino
+    data = serial_port.readline()
+    if data.decode().strip() == "<Science Image>":
+        data = serial_port.read(64)
+        while True:
+            # First 2 bytes are the packets remaining
+            packets_remaining = struct.unpack("<H", data[:2])
+            print(f'packets remaining: {packets_remaining}')
+            data = serial_port.read(64)
+            print(f'image data: {data}')
+            if len(data) < 64 or data.decode(errors='ignore').strip() == "<Science Image/>":
+                break
+            image_bytes += data[3:]
+    print("Finished reading all image bytes")
+    return image_bytes
+
+def reconstructImage(bytes: bytes, width: int, height: int):
+    # Create an empty image with the specified width and height
+    image = Image.new("L", (width, height))
+    # Load the byte stream into the image
+    image.putdata(bytes)
+    return image
+
+def save_and_display_image(image, file_name):
+    # Save the image as PNG
+    image.save(file_name + ".png")
+    image.show()    
 
 
 def process_wod(packets):
