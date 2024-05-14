@@ -277,8 +277,8 @@ public:
   void TransmitDummyImage(short camera_number)
   {
     // Send first data packet, containing header info
-    const int img_width = 50;
-    const int img_height = 50;
+    const int img_width = 61;
+    const int img_height = 61;
     const int start_packet_number = 0;
     byte packet[64];
     memset(packet, 0, 64);
@@ -293,7 +293,7 @@ public:
 
     // Now send the actual data content packets
     // For 50*50=2500 bytes it will take 2500/61 = 41 additional packets
-    int n_additional_packets = 41;
+    int n_additional_packets = 68;
     for (int i = 0; i < n_additional_packets; i++)
     {
       // MAKE SURE THIS DELAY IS LESS THAN THE ITERATION TIME TO PROCESS EACH PACKET IN
@@ -305,7 +305,7 @@ public:
       // Put some alternating black n white pixel values
       for (int k = 0; k < 61; k++)
       {
-        packet[3 + k] = k % 2 ? 0 : 255;
+        packet[3 + k] = 255 - 4 * k;
       }
       Transmit(0, 64, packet);
       Serial.print("Sending wod addtional packet ");

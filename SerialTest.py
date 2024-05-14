@@ -153,6 +153,7 @@ def process_image_content_stream(serial_port: serial.Serial) -> bytes:
     data = serial_port.readline()
     if data.decode().strip() == "<Science Image>":
         data = serial_port.read(64)
+        image_bytes += data[3:]
         while True:
             # First 2 bytes are the packets remaining
             packets_remaining = struct.unpack("<H", data[:2])
