@@ -43,11 +43,39 @@ def serial_write(serial_port):
             else:
                 print("Invalid gettime command")
                 continue
-            print(f'timestamp is: {timestamp}')
+            # print(f'timestamp is: {timestamp}')
             serial_port.write("settime ".encode())
             serial_port.write(str(timestamp).encode())
-            serial_port.write(" 233333".encode())
             serial_port.write(b'\n')
+        elif "getimage" in message:
+            args = message.split()
+            # If we are given 4 arguments, then use live timestamp
+            # Otherwise use the given timestamp
+            if len(args) == 4:
+                timestamp = current_time_to_seconds()
+                camera = args[1]
+                resume_packet_number = args[2]
+                packets_to_send = args[3]
+            elif len(args) == 5:
+                timestamp = parse_datetime_to_seconds(args[1])
+                camera = args[2]
+                resume_packet_number = args[3]
+                packets_to_send = args[4]
+            else:
+                print("Incorrect getimage args provided")
+                continue
+            
+            if camera == 'left':
+                camera_num = 0
+            elif camera == 'right':
+                camera_num = 1
+            else:
+                print(f"Camera should be 'left' or 'right' but '{camera}' was provided")
+                continue
+            print(f'{camera}: {camera_num}')
+
+            serial_port.write(f'getimage {timestamp} {camera_num} {resume_packet_number} {packets_to_send}\n'.encode())
+
         else:
             serial_port.write(message.encode())
 
@@ -81,9 +109,16 @@ def process_header_data_contents(serial_port, data):
 
     elif msg_type == 2:
         # SCIENCE_IMAGE
+        print("Science image received")
+        camera_number = struct.unpack("<B", data[1:2])[0]
+        img_width, img_height = struct.unpack("<hh", data[2:6])
+        img_time = struct.unpack("<I", data[6:10])[0]
+        start_packet_number = struct.unpack("<h", data[10:12])[0]
+        print(f'camera number: {camera_number}, img dimensions: {img_width}x{img_height}, time_taken: {parse_seconds_to_datetime(img_time)}, start packet number: {start_packet_number}')
         pass
     elif msg_type == 3:
         # SCIENCE_THERMO_AND_CURRENT
+        print("Science thermocouple and current received")
         pass
     elif msg_type == 4:
         # GROUND_STATION_COMMAND (this should never be sent as we are the ground station)
@@ -96,6 +131,7 @@ def process_header_data_contents(serial_port, data):
         pass
     elif msg_type == 6:
         #PONG
+        print("Pong received!")
         pass
     else:
         print("Invalid message type received, ignoring the rest of the packet.")
@@ -162,21 +198,23 @@ def parse_seconds_to_datetime(seconds, sydney_zone=True):
     # Convert to sydney time if requested
     if sydney_zone:
         # Set timezone to Sydney
-        # sydney_tz = pytz.timezone('Australia/Sydney')
-        # target_datetime = target_datetime.astimezone(sydney_tz)
         target_datetime += timedelta(seconds=10*3600)
 
     # Format the datetime object
     formatted_datetime = target_datetime.strftime("%I:%M:%S%p %dth %B %Y")  # Example: 6:39PM 26th April 2024
     return formatted_datetime
 
-def parse_datetime_to_seconds(datetime_str):
+def parse_datetime_to_seconds(datetime_str, sydney_zone=True):
     # Parse the datetime string into a datetime object
     dt = datetime.strptime(datetime_str, "%d-%m-%Y-%H-%M-%S")
     # Reference epoch (01/01/2000 00:00:00 UTC)
     reference_epoch = datetime(2000, 1, 1, 0, 0, 0)
     # Calculate the time difference
     time_difference = dt - reference_epoch
+    # Convert to sydney time if requested
+    if sydney_zone:
+        # Convert sydney to utc + 0
+        time_difference -= timedelta(seconds=10*3600)
     # Convert the time difference to seconds
     seconds_since_epoch = int(time_difference.total_seconds())
     return seconds_since_epoch

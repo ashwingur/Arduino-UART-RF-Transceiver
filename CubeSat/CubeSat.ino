@@ -100,11 +100,29 @@ public:
         // Send the time
         char strBuffer[50];
         long timestamp;
-        ;
+
         sscanf(input.c_str(), "%s %ld", strBuffer, &timestamp);
         Serial.print("Setting time to: ");
         Serial.println(timestamp);
         SetTime(timestamp);
+      }
+      else if (input.indexOf("getimage") != -1)
+      {
+        char strBuffer[50];
+        long timestamp;
+        short camera_number;
+        int resume_packet;
+        int packets_to_send;
+        sscanf(input.c_str(), "%s %ld %d %d %d", strBuffer, &timestamp, &camera_number, &resume_packet, &packets_to_send);
+        Serial.print("gettimage command, timestamp:");
+        Serial.print(timestamp);
+        Serial.print(", camera num: ");
+        Serial.print(camera_number);
+        Serial.print(", resume packet: ");
+        Serial.print(resume_packet);
+        Serial.print(", packets to send: ");
+        Serial.println(packets_to_send);
+        RequestScienceImage(timestamp, camera_number, resume_packet, packets_to_send);
       }
       else if (input == "help")
       {
@@ -210,9 +228,89 @@ public:
     packet[4] = MessageType::GROUND_STATION_COMMAND;
     packet[5] = CommandType::SET_TIME;
     memcpy(packet + 6, &timestamp, 4);
-    Serial.print("Settime message is: ");
-    PrintByteArray(packet, 64);
     Transmit(0, 64, packet);
+  }
+
+  void RequestScienceImage(long timestamp,
+                           short camera_number,
+                           int resume_packet,
+                           int packets_to_send)
+  {
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::GROUND_STATION_COMMAND;
+    packet[5] = CommandType::REQUEST_SCIENCE_IMAGE;
+    memcpy(packet + 6, &camera_number, 1);
+    memcpy(packet + 7, &resume_packet, 2);
+    memcpy(packet + 9, &resume_packet, 2);
+    memcpy(packet + 11, &timestamp, 4);
+    Transmit(0, 64, packet);
+  }
+
+  void ProcessScienceImageRequest(byte *packet)
+  {
+    long timestamp;
+    short camera_number;
+    int resume_packet;
+    int packets_to_send;
+
+    memcpy(&camera_number, packet + 6, sizeof(short));
+    memcpy(&resume_packet, packet + 7, sizeof(int));
+    memcpy(&packets_to_send, packet + 9, sizeof(int));
+    memcpy(&timestamp, packet + 11, sizeof(long));
+
+    // Print the data to serial in a single line
+    Serial.print("Camera Number: ");
+    Serial.print(camera_number);
+    Serial.print(", Resume Packet: ");
+    Serial.print(resume_packet);
+    Serial.print(", Packets to Send: ");
+    Serial.print(packets_to_send);
+    Serial.print(", Timestamp: ");
+    Serial.println(timestamp);
+
+    // Send a dummy image
+    TransmitDummyImage(camera_number);
+  }
+
+  void TransmitDummyImage(short camera_number)
+  {
+    // Send first data packet, containing header info
+    const int img_width = 50;
+    const int img_height = 50;
+    const int start_packet_number = 0;
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::SCIENCE_IMAGE;
+    memcpy(packet + 5, &camera_number, 1);
+    memcpy(packet + 6, &img_width, 2);
+    memcpy(packet + 8, &img_height, 2);
+    memcpy(packet + 10, &current_time, 4);
+    memcpy(packet + 14, &start_packet_number, 2);
+    Transmit(0, 64, packet);
+
+    // Now send the actual data content packets
+    // For 50*50=2500 bytes it will take 2500/61 = 41 additional packets
+    int n_additional_packets = 41;
+    for (int i = 0; i < n_additional_packets; i++)
+    {
+      // MAKE SURE THIS DELAY IS LESS THAN THE ITERATION TIME TO PROCESS EACH PACKET IN
+      // ProcessNewPackets()
+      delay(100);
+      uint16_t remaining_packets = n_additional_packets - i - 1;
+      memcpy(packet + 0, &remaining_packets, sizeof(uint16_t));
+      packet[2] = MessageType::SCIENCE_IMAGE;
+      // Put some alternating black n white pixel values
+      for (int k = 0; k < 61; k++)
+      {
+        packet[3 + k] = k % 2 ? 0 : 255;
+      }
+      Transmit(0, 64, packet);
+      Serial.print("Sending wod addtional packet ");
+      Serial.println(i);
+    }
   }
 
   // Check if a new transmission has been received
@@ -290,6 +388,7 @@ public:
     else if (msgType == MessageType::SCIENCE_IMAGE)
     {
       Serial.println("Receiving SCIENCE IMAGE message");
+      ProcessAdditionalPackets("Science Image");
     }
     else if (msgType == MessageType::SCIENCE_THERMO_AND_CURRENT)
     {
@@ -318,9 +417,6 @@ public:
       else if (commandType == CommandType::SET_TIME)
       {
         Serial.println("Received settime request, setting time...");
-        // Set(current_time);
-        // memcpy(&current_time, data + 5, sizeof(current_time));
-        // PrintByteArray(data, 16);
         current_time = 0;
         for (int i = 0; i < 4; i++)
         {
@@ -330,6 +426,11 @@ public:
         Serial.print("Set time to ");
         Serial.println(current_time);
       }
+      else if (commandType == CommandType::REQUEST_SCIENCE_IMAGE)
+      {
+        Serial.println("Received science image request:");
+        ProcessScienceImageRequest(data);
+      }
       else
       {
         Serial.println("Unknown or unimplemented ground station command");
@@ -338,10 +439,7 @@ public:
     else if (msgType == MessageType::TIME)
     {
       // The result is already printed out to the ground station computer, dont need anything here unless for debug
-
-      // uint32_t time = static_cast<uint32_t>(data[5]); // THis is incorrect, fix
-      // Serial.println("Received current time: ");
-      // Serial.println(time);
+      Serial.println("Received current time from CubeSat");
     }
     else if (msgType == MessageType::PONG)
     {
