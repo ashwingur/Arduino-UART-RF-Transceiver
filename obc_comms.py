@@ -177,3 +177,21 @@ class OBCCommunication:
         self.ser.write("ATM")
         self.ser.write(struct.pack("B", mode))
 
+
+    ''' The following tests are just for the pocket beagle
+        Assume the TX port wires back into the RX port
+    '''
+    def Test_ping(self):
+        ping_msg = (b'#R' + struct.pack("BB", 64, 155) + b'CUBE' 
+            + struct.pack("BB", MessageType.GROUND_STATION_COMMAND.value, CommandType.SEND_PING.value))
+        self.ser.write(ping_msg)
+        self.receiveTransmission()
+
+
+
+if __name__ == '__main__':
+    obc_com = OBCCommunication()
+    obc_com.Test_ping()
+    obc_com.receiveTransmission()
+
+
