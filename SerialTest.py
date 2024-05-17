@@ -11,10 +11,12 @@ import csv
 from datetime import datetime, timedelta
 from PIL import Image
 
-COM_PORT = "COM3"
+COM_PORT = "COM4"
 BAUD_RATE = 115200
 
 # Function to continuously read data from serial port
+
+
 def serial_read(serial_port):
     while True:
         # data = serial_port.readline().decode().strip()
@@ -27,6 +29,8 @@ def serial_read(serial_port):
             print(f'Arduino: {data.decode(errors="ignore").strip()}')
 
 # Function to continuously send data to serial port
+
+
 def serial_write(serial_port: serial.Serial):
     while True:
         message = input("")
@@ -64,17 +68,19 @@ def serial_write(serial_port: serial.Serial):
             else:
                 print("Incorrect getimage args provided")
                 continue
-            
+
             if camera == 'left':
                 camera_num = 0
             elif camera == 'right':
                 camera_num = 1
             else:
-                print(f"Camera should be 'left' or 'right' but '{camera}' was provided")
+                print(
+                    f"Camera should be 'left' or 'right' but '{camera}' was provided")
                 continue
             print(f'{camera}: {camera_num}')
 
-            serial_port.write(f'getimage {timestamp} {camera_num} {resume_packet_number} {packets_to_send}\n'.encode())
+            serial_port.write(
+                f'getimage {timestamp} {camera_num} {resume_packet_number} {packets_to_send}\n'.encode())
         elif "getsciencereading" in message:
             args = message.split()
             if len(args) == 1:
@@ -120,20 +126,25 @@ def process_header_data_contents(serial_port: serial.Serial, data):
 
     # Process accordingly to the message type (defined by MessageType enum in the arduino script)
     if msg_type == 1:
+        print("message type is wod")
         # WOD
         additional_packets = b''
-        data = serial_port.readline() # This is an additional print in the arduino
+        # COMMENT OUT THE FOLLOWING LINE IF FROM POCKET BEAGLE
+        data = serial_port.readline()  # This is an additional print in the arduino
+        print(f'1: {data}')
         data = serial_port.readline()
+        print(f'2: {data}')
         if data.decode().strip() == "<WOD Message>":
-            data = serial_port.readline()
+            data = serial_port.read(64)
             iterations = 0
-            while iterations < 10: # So we dont go into infinite loop in case cubesat sends bad data
+            while iterations < 10:  # So we dont go into infinite loop in case cubesat sends bad data
                 # Read all the wod packets, there should be 5
-                data = serial_port.readline()
-                if data.decode().strip() == "<WOD Message/>":
-                    break
-                    
+                data = serial_port.read(64)
+
                 additional_packets += data
+                print(f'additional packets: {data}')
+                if "<WOD Message/>" in data.decode().strip():
+                    break
                 iterations += 1
             process_wod(additional_packets)
 
@@ -153,8 +164,8 @@ def process_header_data_contents(serial_port: serial.Serial, data):
         # There may be some excess bytes in the final packet, be sure to ignore those
         image_bytes = image_bytes[:img_width*img_height]
         image = reconstructImage(image_bytes, img_width, img_height)
-        save_and_display_image(image, f"images/{img_time}_{'left' if camera_number == 0 else 'right'}")
-
+        save_and_display_image(
+            image, f"images/{img_time}_{'left' if camera_number == 0 else 'right'}")
 
     elif msg_type == 3:
         # SCIENCE_THERMO_AND_CURRENT
@@ -170,16 +181,17 @@ def process_header_data_contents(serial_port: serial.Serial, data):
         print(f"Current CubeSat time: {parse_seconds_to_datetime(time)}")
         pass
     elif msg_type == 6:
-        #PONG
+        # PONG
         print("Pong received!")
         pass
     else:
         print("Invalid message type received, ignoring the rest of the packet.")
 
+
 def process_image_content_stream(serial_port: serial.Serial) -> bytes:
     image_bytes = b''
 
-    data = serial_port.readline() # This is an additional print in the arduino
+    data = serial_port.readline()  # This is an additional print in the arduino
     data = serial_port.readline()
     if data.decode().strip() == "<Science Image>":
         data = serial_port.read(64)
@@ -196,6 +208,7 @@ def process_image_content_stream(serial_port: serial.Serial) -> bytes:
     print("Finished reading all image bytes")
     return image_bytes
 
+
 def reconstructImage(bytes: bytes, width: int, height: int):
     # Create an empty image with the specified width and height
     image = Image.new("L", (width, height))
@@ -203,14 +216,16 @@ def reconstructImage(bytes: bytes, width: int, height: int):
     image.putdata(bytes)
     return image
 
+
 def save_and_display_image(image, file_name):
     # Save the image as PNG
     image.save(file_name + ".png")
-    image.show()    
+    image.show()
 
 
 def process_wod(packets):
     print("Processing WOD...")
+    print(len(packets))
     chunk_size = 64
     contents = b''
     # WOD fits in 5 packets
@@ -220,6 +235,8 @@ def process_wod(packets):
 
     # Parse contents. 4 byte unsigned int, then 8x32 bytes unsigned chars
     # Since there is extra space left on the last packet, truncate that so we can unpack exactly what we need
+    print(len(contents))
+    print(contents)
     unpacked_data = struct.unpack('<I' + 'B'*8*32, contents[0:8*32+4])
     time = unpacked_data[0]
     print(f'WOD time: {parse_seconds_to_datetime(time)} ({time})')
@@ -250,6 +267,7 @@ def process_wod(packets):
             writer.writerow(time_column + data_row)
         print("WOD saved to wod.csv")
 
+
 def current_time_to_seconds():
     # Reference epoch (01/01/2000 00:00:00 UTC)
     reference_epoch = datetime(2000, 1, 1, 0, 0, 0)
@@ -260,6 +278,7 @@ def current_time_to_seconds():
     # Convert the time difference to seconds
     seconds_since_epoch = int(time_difference.total_seconds())
     return seconds_since_epoch
+
 
 def parse_seconds_to_datetime(seconds, sydney_zone=True):
     # Reference epoch (01/01/2000 00:00:00 UTC)
@@ -273,8 +292,10 @@ def parse_seconds_to_datetime(seconds, sydney_zone=True):
         target_datetime += timedelta(seconds=10*3600)
 
     # Format the datetime object
-    formatted_datetime = target_datetime.strftime("%I:%M:%S%p %dth %B %Y")  # Example: 6:39PM 26th April 2024
+    formatted_datetime = target_datetime.strftime(
+        "%I:%M:%S%p %dth %B %Y")  # Example: 6:39PM 26th April 2024
     return formatted_datetime
+
 
 def parse_datetime_to_seconds(datetime_str, sydney_zone=True):
     # Parse the datetime string into a datetime object
@@ -290,6 +311,7 @@ def parse_datetime_to_seconds(datetime_str, sydney_zone=True):
     # Convert the time difference to seconds
     seconds_since_epoch = int(time_difference.total_seconds())
     return seconds_since_epoch
+
 
 # Open serial port
 ser = serial.Serial(COM_PORT, BAUD_RATE, timeout=5)
