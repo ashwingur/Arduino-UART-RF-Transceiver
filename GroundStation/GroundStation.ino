@@ -32,6 +32,7 @@ class Zetaplus
     GROUND_STATION_COMMAND = 4,
     TIME = 5,
     PONG = 6,
+    DEBUG = 7,
   };
   enum CommandType : uint8_t
   {

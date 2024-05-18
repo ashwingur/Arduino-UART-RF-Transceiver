@@ -1,6 +1,7 @@
 import serial
 import struct
 import time
+import math
 from enum import Enum, unique
 
 @unique
@@ -30,22 +31,24 @@ class CommandType(Enum):
 class OBCCommunication:
     def __init__(self, uart_port='/dev/ttyS4', baud_rate=19200, timeout=2, channel=0, packet_length=64, SSID="CUBE") -> None:
         try:
-            self.ser = serial.Serial(uart_port, baud_rate, timeout=timeout)
             self.SSID = SSID
             self.packet_length = packet_length
             self.channel = channel
+            self.ser = serial.Serial(uart_port, baud_rate, timeout=timeout)
         except serial.SerialException as e:
             print("Serial port error:", e)
-        finally:
-            # Initialise transceiver
-            # Set to receive mode on channel 0 with packet sizes of 64
-            self.ATR(channel, packet_length)
-            time.sleep(0.02)
-            self.ATM(1)
-            time.sleep(0.02)
+            self.ser = None
+            return
+        # Initialise transceiver
+        # Set to receive mode on channel 0 with packet sizes of 64
+        self.ATR(channel, packet_length)
+        time.sleep(0.02)
+        self.ATM(1)
+        time.sleep(0.02)
 
     def __del__(self):
-        self.ser.close()
+        if self.ser:
+            self.ser.close()
 
     # Check if we've received a ground station command and process accordingly
     def receiveTransmission(self):
@@ -84,6 +87,7 @@ class OBCCommunication:
 
         if cmd_type == CommandType.REQUEST_WOD.value:
             print("CommandType is REQUEST_WOD")
+            self.CMD_request_wod(data[6:])
 
         elif cmd_type == CommandType.REQUEST_SCIENCE_IMAGE.value:
             print("CommandType is REQUEST_SCIENCE_IMAGE")
@@ -96,14 +100,18 @@ class OBCCommunication:
             print("CommandType is REQUEST_TIME")
         elif cmd_type == CommandType.SET_TIME.value:
             print("CommandType is SET_TIME")
+            self.CMD_set_time(data[6:])
         elif cmd_type == CommandType.SET_OPERATING_MODE.value:
+            self.CMD_set_operating_mode(data[6:])
             print("CommandType is SET_OPERATING_MODE")
         elif cmd_type == CommandType.CLEAR_STORAGE_DATA.value:
             print("CommandType is CLEAR_STORAGE_DATA")
         elif cmd_type == CommandType.ACTIVATE_PAYLOAD_STRIKING_MECHANISM.value:
             print("CommandType is ACTIVATE_PAYLOAD_STRIKING_MECHANISM")
+            self.CMD_activate_payload_strike()
         elif cmd_type == CommandType.PERFORM_SCIENCE_MEASUREMENT.value:
             print("CommandType is PERFORM_SCIENCE_MEASUREMENT")
+            self.CMD_perform_science_measurement()
         else:
             print("Unknown CommandType")
 
@@ -127,15 +135,17 @@ class OBCCommunication:
         pass
 
     def CMD_set_time(self, data: bytes):
-        pass
+        time = struct.unpack("<I", data[:4])
+        print(f"Setting time to {time}")
 
     def CMD_set_operating_mode(self, data: bytes):
-        pass
+        operating_mode = struct.unpack("B", data[:1])
+        print(f"Setting operating mode to {operating_mode}")
 
     def CMD_clear_storage_data(self, data: bytes):
         pass
 
-    def CMD_activate_payload_strike(self, data: bytes):
+    def CMD_activate_payload_strike(self, data: bytes = None):
         pass
 
     def CMD_perform_science_measurement(self, data: bytes):
@@ -144,18 +154,32 @@ class OBCCommunication:
     # All contents to be sent in the header packet AFTER SSID
     def downlink_header_packet(self, contents: bytes):
         data = (b'USYD' + contents).ljust(self.packet_length, b'\x00')
-        self.ser.write("ATS")
-        self.ser.write(struct.pack("BB", self.channel, self.packet_length))
-        self.ser.write(data)
-
+        self.transmit(data)
         
 
-    def downlink_information_packets(self, contents: bytes):
-        pass
+    def downlink_information_packets(self, msg_type: MessageType, contents: bytes):
+        # Each info packet contains:
+        # uint16 with number of packets left
+        # uint8 with message type
+        # Remaining 61 bytes are the data contents, padded with 0
+        n_packets = math.ceil(len(contents)/61.0)
+        for i in range(n_packets - 1, -1, -1):
+            print(i)
+            buffer = struct.pack("<HB", i, msg_type.value)
+            buffer += contents[(n_packets-i-1)*61: (n_packets-i)*61]
+            buffer = buffer.ljust(self.packet_length, b'\x00')
+            print(buffer)
+            # Allow other side enough time to process
+            time.sleep(0.1)
+            self.transmit(buffer)
         
-    def downlink_information_packet(self, contents: bytes):
-        pass
-
+    def transmit(self, data: bytes):
+        if self.ser:
+            self.ser.write("ATS")
+            self.ser.write(struct.pack("BB", self.channel, self.packet_length))
+            self.ser.write(data)
+        else:
+            print("Serial connection does not exist, cannot transmit data")
 
     def ATR(self, channel, packet_length):
         '''
@@ -191,7 +215,11 @@ class OBCCommunication:
 
 if __name__ == '__main__':
     obc_com = OBCCommunication()
-    obc_com.Test_ping()
-    obc_com.receiveTransmission()
+    obc_com.downlink_information_packets(MessageType.WOD, b'a'*1000 + b'b'*100)
+    if not obc_com.ser:
+        print("Serial port connection could not be made, exiting program")
+        exit
+    # obc_com.Test_ping()
+
 
 
