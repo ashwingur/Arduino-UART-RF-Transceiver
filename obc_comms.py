@@ -62,7 +62,7 @@ class OBCCommunication:
             return
 
         # Validate header byte of a new packet
-        if data[:2] != "#R":
+        if data[:2] != b"#R":
             return
 
         # Read packet length and signal strength
@@ -181,7 +181,7 @@ class OBCCommunication:
         
     def transmit(self, data: bytes):
         if self.ser:
-            self.ser.write("ATS")
+            self.ser.write("ATS".encode())
             self.ser.write(struct.pack("BB", self.channel, self.packet_length))
             self.ser.write(data)
         else:
@@ -193,7 +193,7 @@ class OBCCommunication:
             Channel: 0-15
             Packet Length: 1-64
         '''
-        self.ser.write("ATR")
+        self.ser.write("ATR".encode())
         self.ser.write(struct.pack("BB", channel, packet_length))
 
 
@@ -204,7 +204,7 @@ class OBCCommunication:
             2: Default state, fast switch between TX and RX
             3: Sleep
         '''
-        self.ser.write("ATM")
+        self.ser.write("ATM".encode())
         self.ser.write(struct.pack("B", mode))
 
 
@@ -212,20 +212,23 @@ class OBCCommunication:
         Assume the TX port wires back into the RX port
     '''
     def Test_ping(self):
+        self.ser.read(30)
         ping_msg = (b'#R' + struct.pack("BB", 64, 155) + b'CUBE' 
             + struct.pack("BB", MessageType.GROUND_STATION_COMMAND.value, CommandType.SEND_PING.value))
-        self.ser.write(ping_msg)
+        print(ping_msg)
+        ping_msg = ping_msg.ljust(64, b'\x00')[:64]
+        print(ping_msg)
+        self.ser.write(ping_msg.ljust(64, b'\x00')[:64])
+        time.sleep(1)
         self.receiveTransmission()
 
 
 
 if __name__ == '__main__':
     obc_com = OBCCommunication()
-    obc_com.downlink_information_packets(MessageType.WOD, b'a'*1000 + b'b'*100)
+    # obc_com.downlink_information_packets(MessageType.WOD, b'a'*1000 + b'b'*100)
+    obc_com.Test_ping()
     if not obc_com.ser:
         print("Serial port connection could not be made, exiting program")
         exit
     # obc_com.Test_ping()
-
-
-
