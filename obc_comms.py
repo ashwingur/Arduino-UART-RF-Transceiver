@@ -118,10 +118,10 @@ class OBCCommunication:
     
     ''' For all CMD functions, bytes contains all the data AFTER the command type, ie any additional arguments'''
 
-    def CMD_request_wod(self, data: bytes):
-        header_contents = struct.pack('B', MessageType.WOD)
+    def CMD_request_wod(self, data: bytes = None):
+        header_contents = struct.pack('B', MessageType.WOD.value)
         self.downlink_header_packet(header_contents)
-        self.downlink_information_packets(MessageType.WOD, b'a'*232)
+        self.downlink_information_packets(MessageType.WOD, b'a'*260)
 
     def CMD_request_science_image(self, data: bytes):
         pass
@@ -129,7 +129,7 @@ class OBCCommunication:
     def CMD_request_science_reading(self, data: bytes):
         pass
 
-    def CMD_ping(self, data: bytes):
+    def CMD_ping(self, data: bytes= None):
         response_contents = struct.pack('B', MessageType.PONG.value)
         self.downlink_header_packet(response_contents)
 
@@ -227,8 +227,15 @@ class OBCCommunication:
 if __name__ == '__main__':
     obc_com = OBCCommunication()
     # obc_com.downlink_information_packets(MessageType.WOD, b'a'*1000 + b'b'*100)
-    obc_com.Test_ping()
+    # obc_com.Test_ping()
+    obc_com.CMD_ping()
     if not obc_com.ser:
         print("Serial port connection could not be made, exiting program")
         exit
+
+    while True:
+        obc_com.receiveTransmission()
+        time.sleep(5)
+        obc_com.CMD_request_wod()
+        # obc_com.CMD_ping()
     # obc_com.Test_ping()
