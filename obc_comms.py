@@ -119,7 +119,9 @@ class OBCCommunication:
     ''' For all CMD functions, bytes contains all the data AFTER the command type, ie any additional arguments'''
 
     def CMD_request_wod(self, data: bytes):
-        pass
+        header_contents = struct.pack('B', MessageType.WOD)
+        self.downlink_header_packet(header_contents)
+        self.downlink_information_packets(MessageType.WOD, b'a'*232)
 
     def CMD_request_science_image(self, data: bytes):
         pass
@@ -153,6 +155,10 @@ class OBCCommunication:
 
     # All contents to be sent in the header packet AFTER SSID
     def downlink_header_packet(self, contents: bytes):
+        '''
+            Transmit a header packet. The target address is automatically added
+            Provide all subsequent arguments as a byte array. Padding automatically added
+        '''
         data = (b'USYD' + contents).ljust(self.packet_length, b'\x00')
         self.transmit(data)
         
