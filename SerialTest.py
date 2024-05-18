@@ -11,7 +11,7 @@ import csv
 from datetime import datetime, timedelta
 from PIL import Image
 
-COM_PORT = "COM4"
+COM_PORT = "COM3"
 BAUD_RATE = 115200
 
 # Function to continuously read data from serial port
@@ -128,25 +128,27 @@ def process_header_data_contents(serial_port: serial.Serial, data):
     if msg_type == 1:
         print("message type is wod")
         # WOD
-        additional_packets = b''
-        # COMMENT OUT THE FOLLOWING LINE IF FROM POCKET BEAGLE
-        data = serial_port.readline()  # This is an additional print in the arduino
-        print(f'1: {data}')
-        data = serial_port.readline()
-        print(f'2: {data}')
-        if data.decode().strip() == "<WOD Message>":
-            data = serial_port.read(64)
-            iterations = 0
-            while iterations < 10:  # So we dont go into infinite loop in case cubesat sends bad data
-                # Read all the wod packets, there should be 5
-                data = serial_port.read(64)
+        # additional_packets = b''
+        # # COMMENT OUT THE FOLLOWING LINE IF FROM POCKET BEAGLE
+        # data = serial_port.readline()  # This is an additional print in the arduino
+        # print(f'1: {data}')
+        # data = serial_port.readline()
+        # print(f'2: {data}')
+        # if data.decode().strip() == "<WOD Message>":
+        #     data = serial_port.read(64)
+        #     iterations = 0
+        #     while iterations < 10:  # So we dont go into infinite loop in case cubesat sends bad data
+        #         # Read all the wod packets, there should be 5
+        #         data = serial_port.read(64)
 
-                additional_packets += data
-                print(f'additional packets: {data}')
-                if "<WOD Message/>" in data.decode().strip():
-                    break
-                iterations += 1
-            process_wod(additional_packets)
+        #         additional_packets += data
+        #         print(f'additional packets: {data}')
+        #         if "<WOD Message/>" in data.decode().strip():
+        #             break
+        #         iterations += 1
+        #     process_wod(additional_packets)
+        wod_bytes = process_wod_content_stream(serial_port)
+        process_wod(wod_bytes)
 
     elif msg_type == 2:
         # SCIENCE_IMAGE
@@ -187,6 +189,28 @@ def process_header_data_contents(serial_port: serial.Serial, data):
     else:
         print("Invalid message type received, ignoring the rest of the packet.")
 
+def process_wod_content_stream(serial_port: serial.Serial) -> bytes:
+    wod_bytes = b''
+
+    data = serial_port.readline()  # This is an additional print in the arduino
+    data = serial_port.readline()
+    if data.decode().strip() == "<WOD Message>":
+        data = serial_port.read(64)
+        wod_bytes += data[3:]
+        while True:
+            # First 2 bytes are the packets remaining
+            packets_remaining = struct.unpack("<H", data[:2])[0]
+            print(f'wod data: {data}')
+            print(f'packets remaining: {packets_remaining}')
+            if packets_remaining == 0:
+                data = serial_port.readline()
+            else:
+                data = serial_port.read(64)
+            if len(data) < 64 or data.decode(errors='ignore').strip() == "<WOD Message/>":
+                break
+            wod_bytes += data[3:]
+    print("Finished reading all wod bytes")
+    return wod_bytes
 
 def process_image_content_stream(serial_port: serial.Serial) -> bytes:
     image_bytes = b''
@@ -199,11 +223,14 @@ def process_image_content_stream(serial_port: serial.Serial) -> bytes:
         while True:
             # First 2 bytes are the packets remaining
             packets_remaining = struct.unpack("<H", data[:2])[0]
-            data = serial_port.read(64)
             print(f'image data: {data}')
+            print(f'packets remaining: {packets_remaining}')
+            if packets_remaining == 0:
+                data = serial_port.readline()
+            else:
+                data = serial_port.read(64)
             if len(data) < 64 or data.decode(errors='ignore').strip() == "<Science Image/>":
                 break
-            print(f'packets remaining: {packets_remaining}')
             image_bytes += data[3:]
     print("Finished reading all image bytes")
     return image_bytes
@@ -223,15 +250,15 @@ def save_and_display_image(image, file_name):
     image.show()
 
 
-def process_wod(packets):
-    print("Processing WOD...")
-    print(len(packets))
-    chunk_size = 64
-    contents = b''
-    # WOD fits in 5 packets
-    # We want to loop through and extract the actual data (we dont really need packets remaining and datatype here, but its there for debugging)
-    for i in range(0, 5):
-        contents += packets[chunk_size*i+3:(chunk_size*(i+1))]
+def process_wod(contents):
+    # print("Processing WOD...")
+    # print(len(packets))
+    # chunk_size = 64
+    # contents = b''
+    # # WOD fits in 5 packets
+    # # We want to loop through and extract the actual data (we dont really need packets remaining and datatype here, but its there for debugging)
+    # for i in range(0, 5):
+    #     contents += packets[chunk_size*i+3:(chunk_size*(i+1))]
 
     # Parse contents. 4 byte unsigned int, then 8x32 bytes unsigned chars
     # Since there is extra space left on the last packet, truncate that so we can unpack exactly what we need

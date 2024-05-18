@@ -163,6 +163,18 @@ public:
     Transmit(0, 64, packet);
   }
 
+  void SendDebug(String msg)
+  {
+    int str_length = msg.length() > 59 ? 59 : msg.length();
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::DEBUG;
+    // memcpy(packet + 5, msg, str_length);
+    msg.getBytes(packet + 5, str_length);
+    Transmit(0, 64, packet);
+  }
+
   void RequestWOD()
   {
     byte packet[64];
@@ -184,7 +196,8 @@ public:
     Transmit(0, 64, packet);
 
     // Now send the actual data content packets
-    // For 1856 bits (232 bytes) it will take 232/61 = 4 additional packets
+    // For (260 bytes) it will take 260/61 = 5 additional packets
+    int bytes = 260;
     int n_additional_packets = 5;
     for (int i = 0; i < n_additional_packets; i++)
     {
@@ -197,7 +210,15 @@ public:
       // Put some random crap in the data contents
       for (int k = 0; k < 61; k++)
       {
-        packet[3 + k] = k;
+        if (bytes > 0)
+        {
+          packet[3 + k] = k;
+          bytes--;
+        }
+        else
+        {
+          packet[3 + k] = 0x00;
+        }
       }
       Transmit(0, 64, packet);
       Serial.print("Sending wod addtional packet ");
@@ -467,6 +488,11 @@ public:
     {
       Serial.println("Received PONG message");
     }
+    else if (msgType == MessageType::DEBUG)
+    {
+      Serial.println("Received DEBUG message");
+      PrintString(data + 5, 59);
+    }
     else
     {
       Serial.println("Unknown message type received");
@@ -566,9 +592,16 @@ public:
     for (int i = 0; i < length; i++)
     {
       Serial.print((char)data[i]); // Cast byte to integer before printing
-      // Serial.print(" ");                // Cast byte to integer before printing
     }
-    // Serial.println(); // Print a newline character after printing the array
+  }
+
+  void PrintString(byte *data, uint8_t length)
+  {
+    for (int i = 0; i < length; i++)
+    {
+      Serial.print((char)data[i]);
+    }
+    Serial.println();
   }
 
   /*
@@ -652,6 +685,7 @@ void setup()
 
   // Initialise transceiver to ready it for RX and TX
   zetaplus.InitialiseTransceiver();
+  zetaplus.SendDebug("Hello worldddddd");
 }
 
 void loop()
