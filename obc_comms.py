@@ -12,6 +12,7 @@ class MessageType(Enum):
     GROUND_STATION_COMMAND = 4
     TIME = 5
     PONG = 6
+    DEBUG = 7
 
 @unique
 class CommandType(Enum):
@@ -178,6 +179,21 @@ class OBCCommunication:
             # Allow other side enough time to process
             time.sleep(0.1)
             self.transmit(buffer)
+
+    def downlink_debug_message(self, message: str):
+        '''
+        Send a generic debug message to the ground station
+        If the message is more than 59 characters it will be sent over multiple packets as needed
+        '''
+        n_messages = math.ceil(len(message)/59.0)
+
+        for i in range(n_messages):
+            buffer = struct.pack("B", MessageType.DEBUG.value)
+            buffer += message[i*59:(i+1)*59].encode()
+            buffer = buffer.ljust(60, b'\x00')
+            time.sleep(0.1)
+            self.transmit(buffer)
+
         
     def transmit(self, data: bytes):
         if self.ser:
