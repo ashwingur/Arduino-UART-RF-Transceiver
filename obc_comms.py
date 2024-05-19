@@ -131,7 +131,6 @@ class OBCCommunication:
         timestamp, camera_number, resume_packet, packets_to_send = struct.unpack("<bhhi", data[:9])
         print(timestamp, camera_number, resume_packet, packets_to_send)
         width, height, pixels = self.read_greyscale_data_from_binary('sample_img/nerd32.png.bin')
-        print(width, height, pixels)
         header_contents = struct.pack('<bhhhih', camera_number, width, height, timestamp, resume_packet)
         self.downlink_header_packet(header_contents)
         self.downlink_information_packets(MessageType.SCIENCE_IMAGE, struct.pack(f'{len(pixels)}b', *pixels))
