@@ -36,6 +36,7 @@ class OBCCommunication:
             self.packet_length = packet_length
             self.channel = channel
             self.ser = serial.Serial(uart_port, baud_rate, timeout=timeout)
+            self.latestTimeStamp = 0
         except serial.SerialException as e:
             print("Serial port error:", e)
             self.ser = None
@@ -92,6 +93,7 @@ class OBCCommunication:
 
         elif cmd_type == CommandType.REQUEST_SCIENCE_IMAGE.value:
             print("CommandType is REQUEST_SCIENCE_IMAGE")
+            self.CMD_request_science_image(data[6:])
         elif cmd_type == CommandType.REQUEST_SCIENCE_THERMO_AND_CURRENT.value:
             print("CommandType is REQUEST_SCIENCE_THERMO_AND_CURRENT")
         elif cmd_type == CommandType.SEND_PING.value:
@@ -99,6 +101,7 @@ class OBCCommunication:
             self.CMD_ping(data)
         elif cmd_type == CommandType.REQUEST_TIME.value:
             print("CommandType is REQUEST_TIME")
+            self.CMD_request_time()
         elif cmd_type == CommandType.SET_TIME.value:
             print("CommandType is SET_TIME")
             self.CMD_set_time(data[6:])
@@ -125,7 +128,14 @@ class OBCCommunication:
         self.downlink_information_packets(MessageType.WOD, b'a'*260)
 
     def CMD_request_science_image(self, data: bytes):
-        pass
+        timestamp, camera_number, resume_packet, packets_to_send = struct.unpack("<bhhi", data[:9])
+        print(timestamp, camera_number, resume_packet, packets_to_send)
+        width, height, pixels = self.read_greyscale_data_from_binary('sample_img/nerd32.png.bin')
+        print(width, height, pixels)
+        header_contents = struct.pack('<bhhhih', camera_number, width, height, timestamp, resume_packet)
+        self.downlink_header_packet(header_contents)
+        self.downlink_information_packets(MessageType.SCIENCE_IMAGE, struct.pack(f'{len(pixels)}b', *pixels))
+
 
     def CMD_request_science_reading(self, data: bytes):
         pass
@@ -134,12 +144,13 @@ class OBCCommunication:
         response_contents = struct.pack('B', MessageType.PONG.value)
         self.downlink_header_packet(response_contents)
 
-    def CMD_request_time(self, data: bytes):
-        pass
+    def CMD_request_time(self, data: bytes = None):
+        self.downlink_header_packet(struct.pack('<I', self.latestTimeStamp))
 
     def CMD_set_time(self, data: bytes):
         time = struct.unpack("<I", data[:4])
         print(f"Setting time to {time}")
+        self.latestTimeStamp = time
 
     def CMD_set_operating_mode(self, data: bytes):
         operating_mode = struct.unpack("B", data[:1])
@@ -223,6 +234,31 @@ class OBCCommunication:
         self.ser.write("ATM".encode())
         self.ser.write(struct.pack("B", mode))
 
+    def read_greyscale_data_from_binary(self, input_path):
+        """
+        Reads the image dimensions and pixel data from a binary file.
+
+        Parameters:
+        - input_path: str, path to the input binary file
+
+        Returns:
+        - width: int, the width of the image
+        - height: int, the height of the image
+        - pixels: list of int, the greyscale pixel values
+        """
+        try:
+            with open(input_path, 'rb') as file:
+                # Read the width and height (each as an unsigned integer)
+                width, height = struct.unpack('II', file.read(8))
+                # Read the pixel data
+                pixel_count = width * height
+                pixels = struct.unpack(f'{pixel_count}B', file.read(pixel_count))
+                
+                print(f"Greyscale pixel data successfully read from {input_path}.")
+                return width, height, list(pixels)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None, None, []
 
     ''' The following tests are just for the pocket beagle
         Assume the TX port wires back into the RX port
@@ -244,6 +280,7 @@ if __name__ == '__main__':
     obc_com = OBCCommunication()
     # obc_com.downlink_information_packets(MessageType.WOD, b'a'*1000 + b'b'*100)
     # obc_com.Test_ping()
+    # obc_com.CMD_request_science_image(b'')
     obc_com.CMD_ping()
     if not obc_com.ser:
         print("Serial port connection could not be made, exiting program")
@@ -251,7 +288,7 @@ if __name__ == '__main__':
 
     while True:
         obc_com.receiveTransmission()
-        time.sleep(5)
-        obc_com.CMD_request_wod()
+        time.sleep(0.1)
+        # obc_com.CMD_request_wod()
         # obc_com.CMD_ping()
     # obc_com.Test_ping()
