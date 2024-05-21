@@ -80,7 +80,7 @@ def serial_write(serial_port: serial.Serial):
             print(f'{camera}: {camera_num}')
 
             serial_port.write(
-                f'getimage {timestamp} {camera_num} {resume_packet_number} {packets_to_send}\n'.encode())
+                f'getimg 0 {camera_num} {resume_packet_number} {packets_to_send}\n'.encode())
         elif "getsciencereading" in message:
             args = message.split()
             if len(args) == 1:
@@ -107,7 +107,7 @@ def serial_write(serial_port: serial.Serial):
             else:
                 print("Incorrect setmode command")
         elif "clearstorage" in message:
-            pass
+            serial_port.write("clearstorage\n".encode())
         elif "payloadstrike" in message:
             serial_port.write("payloadstrike\n".encode())
         elif "sciencemeasurement" in message:
@@ -127,26 +127,6 @@ def process_header_data_contents(serial_port: serial.Serial, data):
     # Process accordingly to the message type (defined by MessageType enum in the arduino script)
     if msg_type == 1:
         print("message type is wod")
-        # WOD
-        # additional_packets = b''
-        # # COMMENT OUT THE FOLLOWING LINE IF FROM POCKET BEAGLE
-        # data = serial_port.readline()  # This is an additional print in the arduino
-        # print(f'1: {data}')
-        # data = serial_port.readline()
-        # print(f'2: {data}')
-        # if data.decode().strip() == "<WOD Message>":
-        #     data = serial_port.read(64)
-        #     iterations = 0
-        #     while iterations < 10:  # So we dont go into infinite loop in case cubesat sends bad data
-        #         # Read all the wod packets, there should be 5
-        #         data = serial_port.read(64)
-
-        #         additional_packets += data
-        #         print(f'additional packets: {data}')
-        #         if "<WOD Message/>" in data.decode().strip():
-        #             break
-        #         iterations += 1
-        #     process_wod(additional_packets)
         wod_bytes = process_wod_content_stream(serial_port)
         process_wod(wod_bytes)
 

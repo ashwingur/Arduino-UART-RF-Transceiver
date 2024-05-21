@@ -91,6 +91,21 @@ public:
         Serial.println("Requesting WOD");
         RequestWOD();
       }
+      else if (input == "clearstorage")
+      {
+        Serial.println("Sending a clear storage command");
+        SendClearStorage();
+      }
+      else if (input == "payloadstrike")
+      {
+        Serial.println("Sending a payload strike command");
+        SendPayloadStrike();
+      }
+      else if (input == "sciencemeasurement")
+      {
+        Serial.println("Sending a science measurement command");
+        SendScienceMeasurementCommand();
+      }
       else if (input == "gettime")
       {
         Serial.println("Requesting Time");
@@ -107,7 +122,7 @@ public:
         Serial.println(timestamp);
         SetTime(timestamp);
       }
-      else if (input.indexOf("getimage") != -1)
+      else if (input.indexOf("getimg") != -1)
       {
         char strBuffer[50];
         long timestamp;
@@ -160,6 +175,36 @@ public:
     memset(packet, 0, 64);
     memcpy(packet, TARGET_ADDRESS, 4);
     packet[4] = MessageType::PONG;
+    Transmit(0, 64, packet);
+  }
+
+  void SendClearStorage()
+  {
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::GROUND_STATION_COMMAND;
+    packet[5] = CommandType::CLEAR_STORAGE_DATA;
+    Transmit(0, 64, packet);
+  }
+
+  void SendPayloadStrike()
+  {
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::GROUND_STATION_COMMAND;
+    packet[5] = CommandType::ACTIVATE_PAYLOAD_STRIKING_MECHANISM;
+    Transmit(0, 64, packet);
+  }
+
+  void SendScienceMeasurementCommand()
+  {
+    byte packet[64];
+    memset(packet, 0, 64);
+    memcpy(packet, TARGET_ADDRESS, 4);
+    packet[4] = MessageType::GROUND_STATION_COMMAND;
+    packet[5] = CommandType::PERFORM_SCIENCE_MEASUREMENT;
     Transmit(0, 64, packet);
   }
 
