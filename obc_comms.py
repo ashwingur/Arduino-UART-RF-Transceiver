@@ -4,6 +4,7 @@ import time
 import math
 from enum import Enum, unique
 
+
 @unique
 class MessageType(Enum):
     WOD = 1
@@ -13,6 +14,7 @@ class MessageType(Enum):
     TIME = 5
     PONG = 6
     DEBUG = 7
+
 
 @unique
 class CommandType(Enum):
@@ -26,7 +28,6 @@ class CommandType(Enum):
     CLEAR_STORAGE_DATA = 8
     ACTIVATE_PAYLOAD_STRIKING_MECHANISM = 9
     PERFORM_SCIENCE_MEASUREMENT = 10
-
 
 
 class OBCCommunication:
@@ -72,8 +73,8 @@ class OBCCommunication:
         print(
             f'packet length: {packet_length}, signal_strength: {signal_strength}')
 
-        ### Now read the actual packet contents
-        data = data[4:] # Trim out the header stuf from zetaplus
+        # Now read the actual packet contents
+        data = data[4:]  # Trim out the header stuf from zetaplus
         # Check the target address matches the CubeSat's address
         target_address = data[:4].decode(errors="ignore")
         if target_address != self.SSID:
@@ -84,7 +85,7 @@ class OBCCommunication:
         # As we are the cubesat, we should only be accepting command message types from the ground station
         if msg_type != MessageType.GROUND_STATION_COMMAND.value:
             return
-        
+
         cmd_type = struct.unpack("<B", data[5:6])[0]
 
         if cmd_type == CommandType.REQUEST_WOD.value:
@@ -119,7 +120,6 @@ class OBCCommunication:
         else:
             print("Unknown CommandType")
 
-    
     ''' For all CMD functions, bytes contains all the data AFTER the command type, ie any additional arguments'''
 
     def CMD_request_wod(self, data: bytes = None):
@@ -128,18 +128,21 @@ class OBCCommunication:
         self.downlink_information_packets(MessageType.WOD, b'a'*260)
 
     def CMD_request_science_image(self, data: bytes):
-        timestamp, camera_number, resume_packet, packets_to_send = struct.unpack("<bhhi", data[:9])
+        timestamp, camera_number, resume_packet, packets_to_send = struct.unpack(
+            "<bhhi", data[:9])
         print(timestamp, camera_number, resume_packet, packets_to_send)
-        width, height, pixels = self.read_greyscale_data_from_binary('sample_img/nerd32.png.bin')
-        header_contents = struct.pack('<bhhhih', camera_number, width, height, timestamp, resume_packet)
+        width, height, pixels = self.read_greyscale_data_from_binary(
+            'sample_img/nerd32.png.bin')
+        header_contents = struct.pack(
+            '<bhhhih', camera_number, width, height, timestamp, resume_packet)
         self.downlink_header_packet(header_contents)
-        self.downlink_information_packets(MessageType.SCIENCE_IMAGE, struct.pack(f'{len(pixels)}b', *pixels))
-
+        self.downlink_information_packets(
+            MessageType.SCIENCE_IMAGE, struct.pack(f'{len(pixels)}b', *pixels))
 
     def CMD_request_science_reading(self, data: bytes):
         pass
 
-    def CMD_ping(self, data: bytes= None):
+    def CMD_ping(self, data: bytes = None):
         response_contents = struct.pack('B', MessageType.PONG.value)
         self.downlink_header_packet(response_contents)
 
@@ -172,7 +175,6 @@ class OBCCommunication:
         '''
         data = (b'USYD' + contents).ljust(self.packet_length, b'\x00')
         self.transmit(data)
-        
 
     def downlink_information_packets(self, msg_type: MessageType, contents: bytes):
         # Each info packet contains:
@@ -204,7 +206,6 @@ class OBCCommunication:
             time.sleep(0.1)
             self.transmit(buffer)
 
-        
     def transmit(self, data: bytes):
         if self.ser:
             self.ser.write("ATS".encode())
@@ -221,7 +222,6 @@ class OBCCommunication:
         '''
         self.ser.write("ATR".encode())
         self.ser.write(struct.pack("BB", channel, packet_length))
-
 
     def ATM(self, mode):
         '''
@@ -251,9 +251,11 @@ class OBCCommunication:
                 width, height = struct.unpack('II', file.read(8))
                 # Read the pixel data
                 pixel_count = width * height
-                pixels = struct.unpack(f'{pixel_count}B', file.read(pixel_count))
-                
-                print(f"Greyscale pixel data successfully read from {input_path}.")
+                pixels = struct.unpack(
+                    f'{pixel_count}B', file.read(pixel_count))
+
+                print(
+                    f"Greyscale pixel data successfully read from {input_path}.")
                 return width, height, list(pixels)
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -262,10 +264,11 @@ class OBCCommunication:
     ''' The following tests are just for the pocket beagle
         Assume the TX port wires back into the RX port
     '''
+
     def Test_ping(self):
         self.ser.read(30)
-        ping_msg = (b'#R' + struct.pack("BB", 64, 155) + b'CUBE' 
-            + struct.pack("BB", MessageType.GROUND_STATION_COMMAND.value, CommandType.SEND_PING.value))
+        ping_msg = (b'#R' + struct.pack("BB", 64, 155) + b'CUBE'
+                    + struct.pack("BB", MessageType.GROUND_STATION_COMMAND.value, CommandType.SEND_PING.value))
         print(ping_msg)
         ping_msg = ping_msg.ljust(64, b'\x00')[:64]
         print(ping_msg)
@@ -273,21 +276,32 @@ class OBCCommunication:
         time.sleep(1)
         self.receiveTransmission()
 
+    def Test_img(self):
+        self.ser.read(100)
+        img_msg: bytes = (b'#R' + + struct.pack("BB", 64, 155) + b'CUBE'
+                          + struct.pack("BB",
+                                        MessageType.GROUND_STATION_COMMAND.value, CommandType.REQUEST_SCIENCE_IMAGE.value))
+        img_msg = img_msg.ljust(64, b'\x00')[:64]
+        print(f'Ground station msg: {img_msg}')
+        self.ser.write(img_msg)
+        time.sleep(0.5)
+        self.receiveTransmission()
 
 
 if __name__ == '__main__':
     obc_com = OBCCommunication()
+    obc_com.Test_img()
     # obc_com.downlink_information_packets(MessageType.WOD, b'a'*1000 + b'b'*100)
     # obc_com.Test_ping()
     # obc_com.CMD_request_science_image(b'')
-    obc_com.CMD_ping()
-    if not obc_com.ser:
-        print("Serial port connection could not be made, exiting program")
-        exit
+    # obc_com.CMD_ping()
+    # if not obc_com.ser:
+    #     print("Serial port connection could not be made, exiting program")
+    #     exit
 
-    while True:
-        obc_com.receiveTransmission()
-        time.sleep(0.1)
-        # obc_com.CMD_request_wod()
-        # obc_com.CMD_ping()
+    # while True:
+    #     obc_com.receiveTransmission()
+    #     time.sleep(0.1)
+    # obc_com.CMD_request_wod()
+    # obc_com.CMD_ping()
     # obc_com.Test_ping()
