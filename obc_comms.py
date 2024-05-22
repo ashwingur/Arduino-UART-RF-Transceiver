@@ -128,16 +128,18 @@ class OBCCommunication:
         self.downlink_information_packets(MessageType.WOD, b'a'*260)
 
     def CMD_request_science_image(self, data: bytes):
-        timestamp, camera_number, resume_packet, packets_to_send = struct.unpack(
+        camera_number, resume_packet, packets_to_send, timestamp = struct.unpack(
             "<bhhi", data[:9])
         print(timestamp, camera_number, resume_packet, packets_to_send)
         width, height, pixels = self.read_greyscale_data_from_binary(
             'sample_img/nerd32.png.bin')
+        print(type(timestamp))
         header_contents = struct.pack(
-            '<bhhhih', camera_number, width, height, timestamp, resume_packet)
+            '<bhhih', camera_number, width, height, timestamp, resume_packet)
         self.downlink_header_packet(header_contents)
+        print(len(pixels))
         self.downlink_information_packets(
-            MessageType.SCIENCE_IMAGE, struct.pack(f'{len(pixels)}b', *pixels))
+            MessageType.SCIENCE_IMAGE, struct.pack(f'{len(pixels)}B', *pixels))
 
     def CMD_request_science_reading(self, data: bytes):
         pass
@@ -278,7 +280,7 @@ class OBCCommunication:
 
     def Test_img(self):
         self.ser.read(100)
-        img_msg: bytes = (b'#R' + + struct.pack("BB", 64, 155) + b'CUBE'
+        img_msg: bytes = (b'#R' + struct.pack("BB", 64, 155) + b'CUBE'
                           + struct.pack("BB",
                                         MessageType.GROUND_STATION_COMMAND.value, CommandType.REQUEST_SCIENCE_IMAGE.value))
         img_msg = img_msg.ljust(64, b'\x00')[:64]
