@@ -64,6 +64,9 @@ def log_wod_data(wod_array, file_path='wod.csv'):
         writer.writerow(wod_array)
     write_log("Logged WOD")
 
+def generate_and_log_wod():
+    log_wod_data(current_time_to_seconds())
+
 def current_time_to_seconds():
     # Reference epoch (01/01/2000 00:00:00 UTC)
     reference_epoch = datetime(2000, 1, 1, 0, 0, 0)
@@ -93,9 +96,7 @@ if __name__ == "__main__":
     time.sleep(5)
     write_log("This is another message")
     
-    wod = generate_wod(current_time_to_seconds())
-    log_wod_data(wod)
+    generate_and_log_wod()
     time.sleep(5)
-    wod = generate_wod(current_time_to_seconds())
-    log_wod_data(wod)
+    generate_and_log_wod()
 

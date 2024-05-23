@@ -8,3 +8,5 @@
 2024-05-23 22:34:43 - This is another message
 2024-05-23 22:34:43 - Logged WOD
 2024-05-23 22:34:48 - Logged WOD
+2024-05-23 22:38:40 - This is a test log message.
+2024-05-23 22:38:45 - This is another message
