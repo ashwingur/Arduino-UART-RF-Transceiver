@@ -169,6 +169,7 @@ def process_header_data_contents(serial_port: serial.Serial, data):
     else:
         print("Invalid message type received, ignoring the rest of the packet.")
 
+
 def process_wod_content_stream(serial_port: serial.Serial) -> bytes:
     wod_bytes = b''
 
@@ -191,6 +192,7 @@ def process_wod_content_stream(serial_port: serial.Serial) -> bytes:
             wod_bytes += data[3:]
     print("Finished reading all wod bytes")
     return wod_bytes
+
 
 def process_image_content_stream(serial_port: serial.Serial) -> bytes:
     image_bytes = b''

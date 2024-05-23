@@ -1,0 +1,2 @@
+2024-05-23 17:01:54 - This is a test log message.
+2024-05-23 17:01:59 - This is another message

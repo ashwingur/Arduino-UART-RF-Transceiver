@@ -2,6 +2,7 @@ import struct
 from PIL import Image
 import sys
 
+
 def convert_to_greyscale(image_path, output_path, size):
     """
     Converts an image to a greyscale image and resizes it to size x size.
@@ -20,9 +21,11 @@ def convert_to_greyscale(image_path, output_path, size):
             grey_img_resized = grey_img.resize((size, size))
             # Save the resulting image
             grey_img_resized.save(output_path)
-            print(f"Image successfully converted to greyscale and resized to {size}x{size}.")
+            print(
+                f"Image successfully converted to greyscale and resized to {size}x{size}.")
     except Exception as e:
         print(f"An error occurred: {e}")
+
 
 def save_greyscale_data_as_text(image_path, output_path):
     """
@@ -49,10 +52,11 @@ def save_greyscale_data_as_text(image_path, output_path):
                 file.write(f"{width},{height}\n")
                 # Convert the list of pixel values to a comma-separated string and write to file
                 file.write(','.join(map(str, pixels)))
-            
+
             print(f"Greyscale pixel data successfully saved to {output_path}.")
     except Exception as e:
         print(f"An error occurred: {e}")
+
 
 def save_greyscale_data_as_binary(image_path, output_path):
     """
@@ -79,10 +83,11 @@ def save_greyscale_data_as_binary(image_path, output_path):
                 file.write(struct.pack('II', width, height))
                 # Write the pixel data as unsigned bytes
                 file.write(struct.pack(f'{len(pixels)}B', *pixels))
-            
+
             print(f"Greyscale pixel data successfully saved to {output_path}.")
     except Exception as e:
         print(f"An error occurred: {e}")
+
 
 def read_greyscale_data_from_binary(input_path):
     """
@@ -103,7 +108,7 @@ def read_greyscale_data_from_binary(input_path):
             # Read the pixel data
             pixel_count = width * height
             pixels = struct.unpack(f'{pixel_count}B', file.read(pixel_count))
-            
+
             print(f"Greyscale pixel data successfully read from {input_path}.")
             return width, height, list(pixels)
     except Exception as e:
@@ -116,13 +121,17 @@ def read_greyscale_data_from_binary(input_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print("Usage: python ImageDownscale.py <input_image_path> <output_image_path> <size>")
-    else:
-        input_image_path = sys.argv[1]
-        output_image_path = sys.argv[2]
-        size = int(sys.argv[3])
-        convert_to_greyscale(input_image_path, output_image_path, size)
+    save_greyscale_data_as_binary(
+        "sample_img/nerd64.png", "sample_img/nerd64.bin")
+    # if len(sys.argv) != 4:
+    #     print(
+    #         "Usage: python ImageDownscale.py <input_image_path> <output_image_path> <size>")
+    # else:
+    #     input_image_path = sys.argv[1]
+    #     output_image_path = sys.argv[2]
+    #     size = int(sys.argv[3])
+    #     convert_to_greyscale(input_image_path, output_image_path, size)
 
-        # save_greyscale_data_as_text(input_image_path, output_image_path + '.txt')
-        save_greyscale_data_as_binary(input_image_path, output_image_path + '.bin')
+    #     # save_greyscale_data_as_text(input_image_path, output_image_path + '.txt')
+    #     save_greyscale_data_as_binary(
+    #         input_image_path, output_image_path + '.bin')
