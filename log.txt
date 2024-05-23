@@ -1,2 +1,10 @@
 2024-05-23 17:01:54 - This is a test log message.
 2024-05-23 17:01:59 - This is another message
+2024-05-23 22:33:01 - This is a test log message.
+2024-05-23 22:33:06 - This is another message
+2024-05-23 22:33:06 - Logged WOD
+2024-05-23 22:33:11 - Logged WOD
+2024-05-23 22:34:38 - This is a test log message.
+2024-05-23 22:34:43 - This is another message
+2024-05-23 22:34:43 - Logged WOD
+2024-05-23 22:34:48 - Logged WOD

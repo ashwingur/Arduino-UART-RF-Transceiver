@@ -1,6 +1,8 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
+import random
+import csv
 
 
 def write_log(log_message, log_file='log.txt'):
@@ -33,9 +35,67 @@ def set_system_time(new_time):
     # Set the time
     os.system(f'time {time_str}')
 
+def generate_wod(seconds_timestamp: int):
+    mode = 1
+    bat_voltage = 7 + random.randint(0,20)*0.05
+    bat_current = 0.5 + random.randint(0,10)*0.00787
+    bus_3v_current = 1 + random.randint(0,10) + 0.025
+    bus_5v_current = 1 + random.randint(0,10) + 0.025
+    temp_comm = 33 + random.randint(0,5)*0.25
+    temp_eps = 35 + random.randint(0,5)*0.25
+    temp_battery = 35 + random.randint(0,5)*0.25
+
+    return [seconds_timestamp, mode, bat_voltage, bat_current, bus_3v_current, bus_5v_current, temp_comm, temp_eps, temp_battery]
+
+def log_wod_data(wod_array, file_path='wod.csv'):
+    # Check if the file exists
+    file_exists = os.path.isfile(file_path)
+
+    # Open the file in append mode
+    with open(file_path, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        
+        # If the file does not exist, write the headers
+        if not file_exists:
+            writer.writerow(['time', 'mode', 'bat_voltage', 'bat_current', 'bus_3v_current',
+                    'bus_5v_current', 'temp_comm', 'temp_eps', 'temp_battery'])
+        
+        # Write the row
+        writer.writerow(wod_array)
+    write_log("Logged WOD")
+
+def current_time_to_seconds():
+    # Reference epoch (01/01/2000 00:00:00 UTC)
+    reference_epoch = datetime(2000, 1, 1, 0, 0, 0)
+    # Get the current time
+    current_time = datetime.utcnow()
+    # Calculate the time difference
+    time_difference = current_time - reference_epoch
+    # Convert the time difference to seconds
+    seconds_since_epoch = int(time_difference.total_seconds())
+    return seconds_since_epoch
+
+def parse_seconds_to_datetime(seconds):
+    # Reference epoch (01/01/2000 00:00:00 UTC)
+    reference_epoch = datetime(2000, 1, 1, 0, 0, 0)
+    # Add the given number of seconds to the reference epoch
+    target_datetime = reference_epoch + timedelta(seconds=seconds)
+
+    # Format the datetime object
+    formatted_datetime = target_datetime.strftime(
+        "%I:%M:%S%p %dth %B %Y")  # Example: 6:39PM 26th April 2024
+    return formatted_datetime
+
 
 if __name__ == "__main__":
     # Example usage
     write_log("This is a test log message.")
     time.sleep(5)
     write_log("This is another message")
+    
+    wod = generate_wod(current_time_to_seconds())
+    log_wod_data(wod)
+    time.sleep(5)
+    wod = generate_wod(current_time_to_seconds())
+    log_wod_data(wod)
+
