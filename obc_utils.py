@@ -65,7 +65,7 @@ def log_wod_data(wod_array, file_path='wod.csv'):
     write_log("Logged WOD")
 
 def generate_and_log_wod():
-    log_wod_data(current_time_to_seconds())
+    log_wod_data(generate_wod(current_time_to_seconds()))
 
 def current_time_to_seconds():
     # Reference epoch (01/01/2000 00:00:00 UTC)
