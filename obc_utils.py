@@ -67,6 +67,33 @@ def log_wod_data(wod_array, file_path='wod.csv'):
 def generate_and_log_wod():
     log_wod_data(generate_wod(current_time_to_seconds()))
 
+def print_latest_wod(file_path='wod.csv', num_rows=32):
+    print('--- LATEST Whole Orbit Data ---')
+    rows = []
+    
+    # Open the CSV file and read all rows
+    with open(file_path, mode='r', newline='') as file:
+        reader = csv.reader(file)
+        
+        # Extract header
+        header = next(reader)
+        
+        # Collect all rows in a list
+        for row in reader:
+            rows.append(row)
+    
+    # Determine the starting point to print last `num_rows` rows
+    start_index = max(0, len(rows) - num_rows)
+    
+    # Print the header
+    print(','.join(header))
+    
+    # Print the last `num_rows` rows
+    for row in rows[start_index:]:
+        print(','.join([parse_seconds_to_datetime(int(row[0]))] + row[1:]))
+    print('----------------------')
+
+
 def current_time_to_seconds():
     # Reference epoch (01/01/2000 00:00:00 UTC)
     reference_epoch = datetime(2000, 1, 1, 0, 0, 0)
@@ -99,4 +126,5 @@ if __name__ == "__main__":
     generate_and_log_wod()
     time.sleep(5)
     generate_and_log_wod()
+    print_latest_wod()
 

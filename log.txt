@@ -14,3 +14,19 @@
 2024-05-23 22:39:44 - This is another message
 2024-05-23 22:39:44 - Logged WOD
 2024-05-23 22:39:49 - Logged WOD
+2024-05-23 22:43:03 - This is a test log message.
+2024-05-23 22:43:08 - This is another message
+2024-05-23 22:43:08 - Logged WOD
+2024-05-23 22:43:13 - Logged WOD
+2024-05-23 22:52:07 - This is a test log message.
+2024-05-23 22:52:12 - This is another message
+2024-05-23 22:52:12 - Logged WOD
+2024-05-23 22:52:17 - Logged WOD
+2024-05-23 22:54:41 - This is a test log message.
+2024-05-23 22:54:46 - This is another message
+2024-05-23 22:54:46 - Logged WOD
+2024-05-23 22:54:51 - Logged WOD
+2024-05-23 22:55:03 - This is a test log message.
+2024-05-23 22:55:08 - This is another message
+2024-05-23 22:55:08 - Logged WOD
+2024-05-23 22:55:13 - Logged WOD
