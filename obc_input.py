@@ -75,8 +75,9 @@ def main():
 
             else:
                 print("invalid command")
-        except InputTimeoutException as e:
+        except Exception as e:
             print(e)
+            write_log(e)
 
 
 if __name__ == "__main__":
