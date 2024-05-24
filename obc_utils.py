@@ -72,6 +72,9 @@ def generate_and_log_wod():
 
 
 def print_latest_wod(file_path='wod.csv', num_rows=32):
+    if not os.path.exists(file_path):
+        print("No WOD logs")
+        return
     print('--- LATEST Whole Orbit Data ---')
     rows = []
 

@@ -3,6 +3,7 @@ import time
 from obc_utils import *
 import datetime
 import random
+import os
 
 
 class InputTimeoutException(Exception):
@@ -39,6 +40,9 @@ def main():
             elif user_input == "wod":
                 write_log("Downlinking latest WOD")
                 print_latest_wod()
+            elif user_input == "logwod":
+                write_log("Logging WOD")
+                generate_and_log_wod()
             elif user_input == "gettime":
                 write_log("Get time request received")
                 print(
@@ -60,6 +64,15 @@ def main():
                 print(
                     f"Payload current value: {payload_current}A")
                 write_log(f"Requested payload current ({payload_current}A)")
+            elif user_input == "payloadstrike":
+                print("Payload strike activated")
+                write_log(f"Payload strike activated")
+            elif user_input == "clearstorage":
+                print("Clearing storage")
+                if os.path.exists('wod.csv'):
+                    os.remove('wod.csv')
+                write_log(f"Clearing WOD logs")
+
             else:
                 print("invalid command")
         except InputTimeoutException as e:

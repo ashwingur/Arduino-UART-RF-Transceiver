@@ -295,18 +295,5 @@ class OBCCommunication:
 
 if __name__ == '__main__':
     obc_com = OBCCommunication()
-    obc_com.Test_img()
-    # obc_com.downlink_information_packets(MessageType.WOD, b'a'*1000 + b'b'*100)
-    # obc_com.Test_ping()
-    # obc_com.CMD_request_science_image(b'')
-    # obc_com.CMD_ping()
-    # if not obc_com.ser:
-    #     print("Serial port connection could not be made, exiting program")
-    #     exit
-
-    # while True:
-    #     obc_com.receiveTransmission()
-    #     time.sleep(0.1)
-    # obc_com.CMD_request_wod()
-    # obc_com.CMD_ping()
-    # obc_com.Test_ping()
+    while True:
+        obc_com.receiveTransmission()
