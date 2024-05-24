@@ -35,17 +35,19 @@ def set_system_time(new_time):
     # Set the time
     os.system(f'time {time_str}')
 
+
 def generate_wod(seconds_timestamp: int):
     mode = 1
-    bat_voltage = 7 + random.randint(0,20)*0.05
-    bat_current = 0.5 + random.randint(0,10)*0.00787
-    bus_3v_current = 1 + random.randint(0,10) + 0.025
-    bus_5v_current = 1 + random.randint(0,10) + 0.025
-    temp_comm = 33 + random.randint(0,5)*0.25
-    temp_eps = 35 + random.randint(0,5)*0.25
-    temp_battery = 35 + random.randint(0,5)*0.25
+    bat_voltage = 7 + random.randint(0, 20)*0.05
+    bat_current = 0.5 + random.randint(0, 10)*0.00787
+    bus_3v_current = 1 + random.randint(0, 10) + 0.025
+    bus_5v_current = 1 + random.randint(0, 10) + 0.025
+    temp_comm = 33 + random.randint(0, 5)*0.25
+    temp_eps = 35 + random.randint(0, 5)*0.25
+    temp_battery = 35 + random.randint(0, 5)*0.25
 
     return [seconds_timestamp, mode, bat_voltage, bat_current, bus_3v_current, bus_5v_current, temp_comm, temp_eps, temp_battery]
+
 
 def log_wod_data(wod_array, file_path='wod.csv'):
     # Check if the file exists
@@ -54,40 +56,42 @@ def log_wod_data(wod_array, file_path='wod.csv'):
     # Open the file in append mode
     with open(file_path, mode='a', newline='') as file:
         writer = csv.writer(file)
-        
+
         # If the file does not exist, write the headers
         if not file_exists:
             writer.writerow(['time', 'mode', 'bat_voltage', 'bat_current', 'bus_3v_current',
-                    'bus_5v_current', 'temp_comm', 'temp_eps', 'temp_battery'])
-        
+                             'bus_5v_current', 'temp_comm', 'temp_eps', 'temp_battery'])
+
         # Write the row
         writer.writerow(wod_array)
     write_log("Logged WOD")
 
+
 def generate_and_log_wod():
     log_wod_data(generate_wod(current_time_to_seconds()))
+
 
 def print_latest_wod(file_path='wod.csv', num_rows=32):
     print('--- LATEST Whole Orbit Data ---')
     rows = []
-    
+
     # Open the CSV file and read all rows
     with open(file_path, mode='r', newline='') as file:
         reader = csv.reader(file)
-        
+
         # Extract header
         header = next(reader)
-        
+
         # Collect all rows in a list
         for row in reader:
             rows.append(row)
-    
+
     # Determine the starting point to print last `num_rows` rows
     start_index = max(0, len(rows) - num_rows)
-    
+
     # Print the header
     print(','.join(header))
-    
+
     # Print the last `num_rows` rows
     for row in rows[start_index:]:
         print(','.join([parse_seconds_to_datetime(int(row[0]))] + row[1:]))
@@ -104,6 +108,7 @@ def current_time_to_seconds():
     # Convert the time difference to seconds
     seconds_since_epoch = int(time_difference.total_seconds())
     return seconds_since_epoch
+
 
 def parse_seconds_to_datetime(seconds):
     # Reference epoch (01/01/2000 00:00:00 UTC)
@@ -122,9 +127,8 @@ if __name__ == "__main__":
     write_log("This is a test log message.")
     time.sleep(5)
     write_log("This is another message")
-    
+
     generate_and_log_wod()
     time.sleep(5)
     generate_and_log_wod()
     print_latest_wod()
-
