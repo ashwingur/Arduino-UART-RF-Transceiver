@@ -1,32 +1,7 @@
-import threading
-import time
 from obc_utils import *
 import datetime
 import random
 import os
-
-
-class InputTimeoutException(Exception):
-    pass
-
-
-def input_with_timeout(prompt, timeout):
-    def get_input():
-        nonlocal user_input
-        user_input = input(prompt)
-
-    user_input = None
-    input_thread = threading.Thread(target=get_input)
-    input_thread.daemon = True
-    input_thread.start()
-    input_thread.join(timeout)
-
-    if input_thread.is_alive():
-        raise InputTimeoutException(
-            "No user input, continuing OBC loops".format(timeout))
-
-    return user_input
-
 
 def main():
     while True:
@@ -67,6 +42,9 @@ def main():
             elif user_input == "payloadstrike":
                 print("Payload strike activated")
                 write_log(f"Payload strike activated")
+            elif user_input == "payloadimage":
+                print("Taking a payload image")
+                write_log(f"Payload image taken")
             elif user_input == "clearstorage":
                 print("Clearing storage")
                 if os.path.exists('wod.csv'):
